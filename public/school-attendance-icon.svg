@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#15803d" />
+      <stop offset="55%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)" />
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" stroke="#6ee7b7" stroke-opacity="0.35" stroke-width="1.5" />
+
+  <!-- Optical scanner corner brackets -->
+  <path d="M12 20V14C12 12.8954 12.8954 12 14 12H20" stroke="#a7f3d0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M44 12H50C51.1046 12 52 12.8954 52 14V20" stroke="#a7f3d0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M12 44V50C12 51.1046 12.8954 52 14 52H20" stroke="#a7f3d0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M44 52H50C51.1046 52 52 51.1046 52 50V44" stroke="#a7f3d0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Graduation cap / school emblem -->
+  <path d="M32 18L47 25L32 32L17 25L32 18Z" fill="#ffffff" />
+  <path d="M22 28.5V36.5C22 39.2 26.5 41.5 32 41.5C37.5 41.5 42 39.2 42 36.5V28.5L32 33.2L22 28.5Z" fill="#d1fae5" />
+  <path d="M45 26V35" stroke="#fde68a" stroke-width="2.4" stroke-linecap="round" />
+  <circle cx="45" cy="36.5" r="2" fill="#fde68a" />
+
+  <!-- Attendance verified badge -->
+  <circle cx="46" cy="46" r="8.5" fill="#064e3b" stroke="#6ee7b7" stroke-width="1.8" />
+  <path d="M42.2 46.2L44.8 48.8L49.8 43.4" stroke="#34d399" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

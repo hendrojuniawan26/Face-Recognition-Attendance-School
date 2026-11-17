@@ -1,0 +1,3514 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face Recognition Attendance School</title>
+    <meta
+      name="description"
+      content="Sistem Absensi Wajah Siswa & Guru Realtime berbasis browser menggunakan face-api.js dan Supabase untuk Face Recognition Attendance School."
+    />
+    <meta property="og:title" content="Face Recognition Attendance School" />
+    <meta
+      property="og:description"
+      content="Sistem Absensi Wajah Siswa & Guru Realtime berbasis browser menggunakan face-api.js dan Supabase untuk Face Recognition Attendance School."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/school-attendance-icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/school-attendance-icon.svg" />
+    <link rel="apple-touch-icon" href="/school-attendance-icon.svg" />
+
+    <!-- Google Fonts: Plus Jakarta Sans (Display), DM Sans (Body), JetBrains Mono (Tabular Data) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['"Plus Jakarta Sans"', 'sans-serif'],
+              sans: ['"DM Sans"', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+            },
+            colors: {
+              pasundan: {
+                50: '#f0fdf4',
+                100: '#dcfce7',
+                600: '#16a34a',
+                700: '#15803d',
+                800: '#166534',
+                900: '#14532d',
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <!-- Pre-paint theme initialization to prevent light/dark flash -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('pasundan9_theme');
+          var isDark = saved ? saved === 'dark' : true;
+          document.documentElement.classList.toggle('dark', isDark);
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- Face-API.js (@vladmandic/face-api) via CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+
+    <!-- Supabase JS Client v2 via CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Lucide Icons via CDN -->
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+      body {
+        font-family: 'DM Sans', sans-serif;
+        background-color: #f3f7f5;
+        background-image:
+          radial-gradient(circle at 18% 0%, rgba(16, 185, 129, 0.08), transparent 42%),
+          radial-gradient(circle at 88% 8%, rgba(217, 119, 6, 0.06), transparent 36%),
+          linear-gradient(to right, rgba(15, 23, 42, 0.025) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(15, 23, 42, 0.025) 1px, transparent 1px);
+        background-size: auto, auto, 32px 32px, 32px 32px;
+        color: #0f172a;
+      }
+      html.dark body {
+        background-color: #050a14;
+        background-image:
+          radial-gradient(circle at 18% 0%, rgba(16, 185, 129, 0.14), transparent 45%),
+          radial-gradient(circle at 86% 6%, rgba(245, 158, 11, 0.08), transparent 36%),
+          linear-gradient(to right, rgba(52, 211, 153, 0.045) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(52, 211, 153, 0.045) 1px, transparent 1px);
+        background-size: auto, auto, 32px 32px, 32px 32px;
+        color: #f1f5f9;
+      }
+      h1, h2, h3, .font-display {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+      @keyframes opticalScan {
+        0% {
+          transform: translateY(0%);
+          opacity: 0;
+        }
+        15% {
+          opacity: 0.75;
+        }
+        85% {
+          opacity: 0.75;
+        }
+        100% {
+          transform: translateY(2800%);
+          opacity: 0;
+        }
+      }
+      .optical-scan-beam {
+        animation: opticalScan 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      @keyframes tabFadeIn {
+        0% {
+          opacity: 0;
+          transform: translateY(10px) scale(0.996);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .tab-panel-enter {
+        animation: tabFadeIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        will-change: opacity, transform;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+        .optical-scan-beam {
+          animation: none !important;
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col text-slate-900 dark:text-slate-100 antialiased">
+    <!-- ======================================================================
+         TOP NAVIGATION BAR (3-Zone Single Row Contract)
+         Zone 1: Wordmark Sekolah | Zone 2: 3 Tab Navigasi | Zone 3: Kontrol & Ekspor
+         ====================================================================== -->
+    <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800">
+      <div class="h-0.5 w-full bg-gradient-to-r from-pasundan-800 via-emerald-400 to-amber-400"></div>
+      <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4 sm:gap-8">
+        <!-- Zone 1: Single-line School Logo & Wordmark -->
+        <a
+          href="#presensi"
+          id="brandLink"
+          class="inline-flex items-center gap-2.5 font-display text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+        >
+          <img
+            src="/school-attendance-icon.svg"
+            alt="Ikon Face Recognition Attendance School"
+            class="w-8 h-8 rounded-lg object-contain shrink-0 drop-shadow-sm"
+          />
+          <span>Face Recognition Attendance School</span>
+        </a>
+
+        <!-- Zone 2: Navigation Tabs -->
+        <nav aria-label="Navigasi Utama" class="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+          <button
+            type="button"
+            data-tab="presensi"
+            class="nav-tab px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
+            Presensi Harian
+          </button>
+          <button
+            type="button"
+            data-tab="enrollment"
+            class="nav-tab px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
+            Pendaftaran Wajah
+          </button>
+          <button
+            type="button"
+            data-tab="config"
+            class="nav-tab px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
+            Konfigurasi Supabase
+          </button>
+        </nav>
+
+        <!-- Zone 3: Theme Toggle & Primary Action -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            id="btnThemeToggle"
+            aria-label="Ubah mode tampilan gelap atau terang"
+            aria-pressed="true"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
+            <span id="themeIconWrap" class="inline-flex"><i data-lucide="sun" class="w-4 h-4 text-amber-400"></i></span>
+            <span id="themeLabel" class="hidden md:inline">Mode Terang</span>
+          </button>
+
+          <button
+            type="button"
+            id="btnExportCsv"
+            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-pasundan-700 hover:bg-pasundan-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950 focus-visible:ring-emerald-500 disabled:opacity-50"
+          >
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Ekspor CSV</span>
+            <span class="sm:hidden">CSV</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ======================================================================
+         MAIN WORKSPACE
+         ====================================================================== -->
+    <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <!-- Global Context & Smart-Campus Masthead Bar -->
+      <section
+        aria-label="Informasi Sesi dan Status Sistem"
+        class="bg-white dark:bg-[#0B1220] border border-slate-200/90 dark:border-slate-800 rounded-2xl px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
+      >
+        <div class="flex items-center gap-4">
+          <!-- Ikon Sekolah & Absensi -->
+          <div
+            class="w-14 h-14 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-500/35 p-1.5 flex items-center justify-center shrink-0 shadow-sm"
+          >
+            <img
+              src="/school-attendance-icon.svg"
+              alt="Ikon Face Recognition Attendance School"
+              class="w-full h-full object-contain drop-shadow-sm"
+            />
+          </div>
+
+          <div class="space-y-1 min-w-0">
+            <h1 class="font-display text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Sistem Absensi Wajah Siswa &amp; Guru Realtime
+            </h1>
+            <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+              <span class="font-medium text-pasundan-800 dark:text-emerald-400">Smart School Monitor</span>
+              <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+              <span id="todayDateLabel">Memuat tanggal...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Digital Clock & Real Connection / AI Model Status -->
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2.5 text-sm">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-950 border border-slate-800 dark:border-emerald-500/35 text-emerald-400">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span id="liveClock" class="font-mono tabular-nums text-xs sm:text-sm font-medium tracking-wide">--:--:-- WIB</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+            <span class="text-slate-500 dark:text-slate-400">Model Wajah:</span>
+            <span id="modelStatusText" class="font-medium text-amber-700 dark:text-amber-300">Memuat bobot AI...</span>
+          </div>
+          <span aria-hidden="true" class="hidden sm:inline text-slate-200 dark:text-slate-700">|</span>
+          <div class="flex items-center gap-2">
+            <i data-lucide="database" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+            <span class="text-slate-500 dark:text-slate-400">Supabase:</span>
+            <button
+              type="button"
+              id="supabaseStatusBtn"
+              class="font-medium text-slate-700 dark:text-slate-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+            >
+              Memeriksa...
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Global Inline Notification Banner (Errors / Guidance) -->
+      <div
+        id="globalBanner"
+        class="hidden border border-amber-200 dark:border-amber-500/35 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 rounded-xl px-5 py-3.5 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        role="status"
+      >
+        <div class="flex items-start sm:items-center gap-2.5">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0"></i>
+          <span id="globalBannerText"></span>
+        </div>
+        <button
+          type="button"
+          id="globalBannerAction"
+          class="text-sm font-medium text-amber-900 dark:text-amber-200 underline whitespace-nowrap shrink-0 self-start sm:self-center"
+        >
+          Buka Konfigurasi
+        </button>
+      </div>
+
+      <!-- ====================================================================
+           TAB 1: MODE PRESENSI KELAS (2-COLUMN SPLIT DASHBOARD)
+           ==================================================================== -->
+      <section id="tab-presensi" class="tab-panel grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- SISI KIRI: KAMERA PRESENSI (5 kolom pada desktop) -->
+        <div class="lg:col-span-5 bg-white dark:bg-[#0B1220] border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-gradient-to-r from-white to-slate-50/70 dark:from-[#0B1220] dark:to-[#0F182B]">
+            <div>
+              <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Pemindai Wajah Sekolah</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Deteksi optik otomatis setiap 400 ms untuk Siswa &amp; Guru</p>
+            </div>
+            <button
+              type="button"
+              id="btnToggleAudio"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0 min-h-[36px]"
+              aria-pressed="true"
+            >
+              <span id="audioIconWrap" class="inline-flex"><i data-lucide="volume-2" class="w-3.5 h-3.5"></i></span>
+              <span id="audioLabel">Suara Aktif</span>
+            </button>
+          </div>
+
+          <!-- Video Feed & Futuristic Optical Detection Canvas -->
+          <div class="p-4 space-y-4">
+            <div class="relative w-full aspect-[4/3] bg-[#0B1324] dark:bg-[#040812] rounded-xl overflow-hidden border border-slate-800 dark:border-emerald-500/30 shadow-inner">
+              <video
+                id="attendanceVideo"
+                autoplay
+                muted
+                playsinline
+                class="w-full h-full object-cover"
+              ></video>
+              <canvas
+                id="attendanceCanvas"
+                class="absolute inset-0 w-full h-full pointer-events-none"
+              ></canvas>
+
+              <!-- Futuristic Optical Corner Registration Brackets -->
+              <div class="pointer-events-none absolute inset-3">
+                <span class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-emerald-400/75 rounded-tl-sm"></span>
+                <span class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-emerald-400/75 rounded-tr-sm"></span>
+                <span class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-emerald-400/75 rounded-bl-sm"></span>
+                <span class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-emerald-400/75 rounded-br-sm"></span>
+              </div>
+
+              <!-- Subtle Optical Scan Sweep (Aktif hanya saat kamera menyala) -->
+              <div
+                id="scanBeam"
+                class="hidden pointer-events-none absolute inset-x-3 top-3 h-0.5 bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent shadow-[0_0_12px_rgba(52,211,153,0.75)] optical-scan-beam"
+              ></div>
+
+              <!-- Camera Inactive Placeholder -->
+              <div
+                id="cameraPlaceholder"
+                class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-[#0B1324] text-slate-300"
+              >
+                <div class="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center mb-3.5">
+                  <i data-lucide="scan-face" class="w-6 h-6 text-emerald-400"></i>
+                </div>
+                <p class="font-display text-sm font-semibold text-white">Pemindai Biometrik Siap</p>
+                <p class="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+                  Izinkan akses kamera pada browser lalu klik tombol di bawah untuk memulai presensi siswa &amp; guru.
+                </p>
+                <button
+                  type="button"
+                  id="btnPlaceholderStartCamera"
+                  class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg shadow-emerald-950/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                >
+                  <i data-lucide="video" class="w-4 h-4"></i>
+                  <span>Izinkan &amp; Buka Kamera</span>
+                </button>
+              </div>
+
+              <!-- Verification Success Glass Alert -->
+              <div
+                id="successAlert"
+                role="alert"
+                class="hidden absolute inset-x-3 bottom-3 bg-emerald-950/90 backdrop-blur-md text-white rounded-xl px-4 py-3 shadow-xl border border-emerald-400/50 transition-opacity duration-200"
+              >
+                <div class="flex items-start gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-300"></i>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div id="alertRoleLabel" class="text-xs font-medium text-emerald-300">Presensi Berhasil Diverifikasi</div>
+                    <div id="alertStudentName" class="font-display text-base font-bold truncate mt-0.5 text-white">-</div>
+                    <div class="text-xs text-emerald-100/90 font-mono tabular-nums mt-0.5 flex items-center gap-2">
+                      <span id="alertStudentClass">-</span>
+                      <span aria-hidden="true">·</span>
+                      <span id="alertStudentNisn">-</span>
+                      <span aria-hidden="true">·</span>
+                      <span id="alertStudentTime">--:--:--</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Camera Controls -->
+            <div class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="cameraSelect" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                    Perangkat Webcam
+                  </label>
+                  <div class="flex items-center gap-1.5">
+                    <select
+                      id="cameraSelect"
+                      class="flex-1 min-w-0 h-10 px-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="">Kamera Default</option>
+                    </select>
+                    <button
+                      type="button"
+                      id="btnDetectCameras"
+                      title="Deteksi ulang perangkat kamera"
+                      aria-label="Deteksi ulang perangkat kamera"
+                      class="h-10 px-2.5 inline-flex items-center justify-center bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    >
+                      <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label for="detectorSelect" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                    Mode Deteksi AI
+                  </label>
+                  <select
+                    id="detectorSelect"
+                    class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="ssd">SSD MobileNet (Akurat)</option>
+                    <option value="tiny">TinyFace (Cepat)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <button
+                  type="button"
+                  id="btnStartCamera"
+                  class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-pasundan-700 hover:bg-pasundan-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors duration-150 min-h-[42px] whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
+                  <i data-lucide="video" class="w-4 h-4"></i>
+                  <span>Mulai Kamera</span>
+                </button>
+                <button
+                  type="button"
+                  id="btnStopCamera"
+                  disabled
+                  class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700 disabled:opacity-50 disabled:pointer-events-none rounded-lg transition-colors duration-150 min-h-[42px] whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                >
+                  <i data-lucide="square" class="w-4 h-4"></i>
+                  <span>Hentikan Kamera</span>
+                </button>
+              </div>
+
+              <!-- Camera Permission Status & Diagnostic Box -->
+              <div
+                id="cameraPermissionBox"
+                class="hidden rounded-xl border px-3.5 py-2.5 text-xs space-y-2"
+              >
+                <div class="flex items-start justify-between gap-2.5">
+                  <div class="min-w-0">
+                    <div id="cameraPermissionTitle" class="font-semibold">Status Izin Kamera</div>
+                    <p id="cameraPermissionDesc" class="mt-0.5 leading-relaxed opacity-90"></p>
+                  </div>
+                  <button
+                    type="button"
+                    id="btnRequestCameraPermission"
+                    class="px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    Izinkan Kamera
+                  </button>
+                </div>
+                <div id="cameraNewTabRow" class="hidden pt-1.5 border-t border-current/15 flex items-center justify-between gap-2">
+                  <span class="opacity-85">Jika browser memblokir akses kamera di tampilan ini:</span>
+                  <a
+                    id="openNewTabCameraLink"
+                    href="."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 font-semibold underline whitespace-nowrap shrink-0"
+                  >
+                    <span>Buka di Tab Baru</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Live Detection Readout -->
+              <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span id="detectionStateLabel">Menunggu kamera diaktifkan</span>
+                <span id="enrolledMatcherCount" class="font-mono tabular-nums text-slate-600 dark:text-emerald-400">0 profil wajah dimuat</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SISI KANAN: LOG KEHADIRAN REALTIME (7 kolom pada desktop) -->
+        <div class="lg:col-span-7 bg-white dark:bg-[#0B1220] border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+          <!-- Attendance Header + Summary Counters -->
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Log Kehadiran Realtime</h2>
+                <p id="attendanceClassSubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Menampilkan seluruh Siswa &amp; Guru terdaftar
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+                <button
+                  type="button"
+                  id="btnToggleDesktopNotif"
+                  aria-pressed="false"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
+                  <span id="desktopNotifIconWrap" class="inline-flex"><i data-lucide="bell" class="w-3.5 h-3.5"></i></span>
+                  <span id="desktopNotifLabel">Aktifkan Notif Desktop</span>
+                </button>
+                <button
+                  type="button"
+                  id="btnRefreshAttendance"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap min-h-[36px]"
+                >
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                  <span>Muat Ulang</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Role Switcher (Semua / Siswa / Guru) -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div
+                class="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-lg"
+                role="group"
+                aria-label="Filter Peran"
+              >
+                <button
+                  type="button"
+                  data-role-filter="ALL"
+                  class="role-filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap"
+                >
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  data-role-filter="siswa"
+                  class="role-filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap"
+                >
+                  Siswa
+                </button>
+                <button
+                  type="button"
+                  data-role-filter="guru"
+                  class="role-filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap"
+                >
+                  Guru
+                </button>
+              </div>
+
+              <div id="statRoleBreakdown" class="text-xs font-mono tabular-nums text-slate-500 dark:text-slate-400">
+                0 Siswa · 0 Guru
+              </div>
+            </div>
+
+            <!-- 3 Summary Metrics + Progress Bar -->
+            <div class="border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/70 dark:bg-slate-950/70 overflow-hidden">
+              <div class="grid grid-cols-3 divide-x divide-slate-200 dark:divide-slate-800">
+                <div class="px-4 py-3">
+                  <div id="statTotalLabel" class="text-xs text-slate-500 dark:text-slate-400">Total Terdaftar</div>
+                  <div id="statTotal" class="font-mono tabular-nums text-xl font-semibold text-slate-900 dark:text-white mt-0.5">0</div>
+                </div>
+                <div class="px-4 py-3">
+                  <div class="text-xs text-slate-500 dark:text-slate-400">Sudah Hadir</div>
+                  <div class="flex items-baseline gap-2 mt-0.5">
+                    <span id="statPresent" class="font-mono tabular-nums text-xl font-semibold text-pasundan-700 dark:text-emerald-400">0</span>
+                    <span id="statPresentPct" class="font-mono tabular-nums text-xs text-pasundan-700 dark:text-emerald-300 font-medium">0%</span>
+                  </div>
+                </div>
+                <div class="px-4 py-3">
+                  <div class="text-xs text-slate-500 dark:text-slate-400">Belum Hadir</div>
+                  <div id="statAbsent" class="font-mono tabular-nums text-xl font-semibold text-slate-600 dark:text-slate-300 mt-0.5">0</div>
+                </div>
+              </div>
+              <div class="h-1.5 w-full bg-slate-200/80 dark:bg-slate-800">
+                <div
+                  id="attendanceProgressBar"
+                  class="h-full bg-gradient-to-r from-pasundan-700 via-emerald-500 to-emerald-400 transition-all duration-300"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Search & Filters -->
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="relative flex-1">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input
+                  type="text"
+                  id="searchStudentInput"
+                  placeholder="Cari nama, NISN/NIP, atau kelas/mapel..."
+                  class="w-full h-10 pl-9 pr-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <select
+                id="classFilterSelect"
+                aria-label="Filter Kelas atau Mapel"
+                class="h-10 px-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="ALL">Semua Kelas / Unit</option>
+              </select>
+              <div class="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-lg shrink-0" role="group" aria-label="Filter Status Kehadiran">
+                <button
+                  type="button"
+                  data-status-filter="ALL"
+                  class="status-filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap"
+                >
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  data-status-filter="HADIR"
+                  class="status-filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap"
+                >
+                  Hadir
+                </button>
+                <button
+                  type="button"
+                  data-status-filter="BELUM"
+                  class="status-filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap"
+                >
+                  Belum
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Attendance Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <th class="py-3 pl-5 pr-3">Nama &amp; Peran</th>
+                  <th class="py-3 px-3">NISN / NIP</th>
+                  <th class="py-3 px-3">Kelas / Mapel</th>
+                  <th class="py-3 px-3">Jam Hadir</th>
+                  <th class="py-3 pl-3 pr-5 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody id="attendanceTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                <!-- Rows rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Table Empty / Loading States -->
+          <div id="attendanceEmptyState" class="hidden px-6 py-12 text-center">
+            <div class="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="users" class="w-5 h-5 text-slate-400 dark:text-slate-400"></i>
+            </div>
+            <p id="attendanceEmptyTitle" class="text-sm font-medium text-slate-900 dark:text-slate-100">Belum ada data terdaftar</p>
+            <p id="attendanceEmptyDesc" class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+              Hubungkan Supabase dan daftarkan wajah siswa atau guru terlebih dahulu untuk memulai log kehadiran realtime.
+            </p>
+            <button
+              type="button"
+              id="btnEmptyAction"
+              class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-pasundan-700 hover:bg-pasundan-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors"
+            >
+              Daftarkan Siswa / Guru
+            </button>
+          </div>
+        </div>
+
+        <!-- GRAFIK RINGKASAN KEHADIRAN MINGGUAN (RECHARTS COMPONENT) -->
+        <div id="weeklyAttendanceChartRoot" class="lg:col-span-12"></div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 2: PENDAFTARAN WAJAH SISWA & GURU (ENROLLMENT)
+           ==================================================================== -->
+      <section id="tab-enrollment" class="tab-panel hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Form Pendaftaran Siswa & Guru -->
+        <div class="lg:col-span-6 bg-white dark:bg-[#0B1220] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+            <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Pendaftaran Wajah Siswa &amp; Guru</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Pilih peran (Siswa atau Guru), lalu ambil foto melalui webcam atau unggah foto formal untuk mengekstrak 128 vektor wajah.
+            </p>
+          </div>
+
+          <form id="enrollmentForm" class="p-5 space-y-5">
+            <!-- Pilihan Peran (Siswa / Guru) -->
+            <div>
+              <span class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Peran Pendaftar</span>
+              <div class="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-xl gap-1" role="group" aria-label="Pilih Peran">
+                <button
+                  type="button"
+                  data-enroll-role="siswa"
+                  class="enroll-role-btn px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors"
+                >
+                  Siswa
+                </button>
+                <button
+                  type="button"
+                  data-enroll-role="guru"
+                  class="enroll-role-btn px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors"
+                >
+                  Guru / Tenaga Pendidik
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label id="enrollIdLabel" for="enrollNisn" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  NISN Siswa
+                </label>
+                <input
+                  type="text"
+                  id="enrollNisn"
+                  required
+                  inputmode="numeric"
+                  placeholder="Contoh: 0078123456"
+                  class="w-full h-10 px-3 text-sm font-mono bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label id="enrollClassLabel" for="enrollClass" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Kelas
+                </label>
+                <input
+                  type="text"
+                  id="enrollClass"
+                  required
+                  list="pasundanClassList"
+                  placeholder="Contoh: XII IPA 1"
+                  class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <datalist id="pasundanClassList">
+                  <option value="X-1"></option>
+                  <option value="X-2"></option>
+                  <option value="X-3"></option>
+                  <option value="XI IPA 1"></option>
+                  <option value="XI IPA 2"></option>
+                  <option value="XI IPS 1"></option>
+                  <option value="XII IPA 1"></option>
+                  <option value="XII IPA 2"></option>
+                  <option value="XII IPS 1"></option>
+                </datalist>
+                <datalist id="teacherUnitList">
+                  <option value="Matematika"></option>
+                  <option value="Bahasa Indonesia"></option>
+                  <option value="Bahasa Inggris"></option>
+                  <option value="Fisika"></option>
+                  <option value="Kimia"></option>
+                  <option value="Biologi"></option>
+                  <option value="Informatika / TIK"></option>
+                  <option value="Pendidikan Agama"></option>
+                  <option value="Bimbingan Konseling (BK)"></option>
+                  <option value="Wali Kelas"></option>
+                  <option value="Kepala Sekolah"></option>
+                  <option value="Wakil Kepala Sekolah"></option>
+                  <option value="Staf Tata Usaha"></option>
+                </datalist>
+              </div>
+            </div>
+
+            <div>
+              <label id="enrollNameLabel" for="enrollName" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                Nama Lengkap Siswa
+              </label>
+              <input
+                type="text"
+                id="enrollName"
+                required
+                placeholder="Contoh: Mochammad Rizky Pratama"
+                class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <!-- Pilihan Sumber Foto Wajah -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Pengambilan Foto &amp; Ekstraksi Wajah</span>
+                <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-lg">
+                  <button
+                    type="button"
+                    data-photo-mode="webcam"
+                    class="photo-mode-btn px-3 py-1 text-xs font-medium rounded-md transition-colors"
+                  >
+                    Webcam
+                  </button>
+                  <button
+                    type="button"
+                    data-photo-mode="upload"
+                    class="photo-mode-btn px-3 py-1 text-xs font-medium rounded-md transition-colors"
+                  >
+                    Upload Foto
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mode Webcam Enrollment -->
+              <div id="enrollWebcamBox" class="space-y-3">
+                <div class="relative w-full aspect-[4/3] bg-[#0B1324] dark:bg-[#040812] rounded-xl overflow-hidden border border-slate-800 dark:border-emerald-500/30">
+                  <video
+                    id="enrollVideo"
+                    autoplay
+                    muted
+                    playsinline
+                    class="w-full h-full object-cover"
+                  ></video>
+                  <div class="pointer-events-none absolute inset-3">
+                    <span class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-emerald-400/70 rounded-tl-sm"></span>
+                    <span class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-emerald-400/70 rounded-tr-sm"></span>
+                    <span class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-emerald-400/70 rounded-bl-sm"></span>
+                    <span class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-emerald-400/70 rounded-br-sm"></span>
+                  </div>
+                  <div
+                    id="enrollVideoPlaceholder"
+                    class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-[#0B1324] dark:bg-[#040812] text-slate-300"
+                  >
+                    <i data-lucide="camera" class="w-6 h-6 text-emerald-400 mb-2"></i>
+                    <p class="text-xs text-slate-300">Klik Aktifkan Webcam untuk mengambil foto wajah</p>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    id="btnEnrollStartCam"
+                    class="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700 rounded-lg transition-colors min-h-[40px]"
+                  >
+                    Aktifkan Webcam
+                  </button>
+                  <button
+                    type="button"
+                    id="btnEnrollCapture"
+                    disabled
+                    class="px-4 py-2 text-xs font-medium text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 disabled:opacity-50 rounded-lg transition-colors min-h-[40px]"
+                  >
+                    Ambil Foto &amp; Ekstrak Wajah
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mode Upload File -->
+              <div id="enrollUploadBox" class="hidden">
+                <label
+                  for="enrollFileInput"
+                  class="flex flex-col items-center justify-center w-full h-36 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-950/70 hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer transition-colors px-4 text-center"
+                >
+                  <i data-lucide="upload" class="w-5 h-5 text-slate-500 dark:text-slate-400 mb-2"></i>
+                  <span class="text-xs font-medium text-slate-700 dark:text-slate-200">Pilih file foto wajah (JPG / PNG)</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pastikan wajah menghadap depan dengan pencahayaan cukup</span>
+                  <input id="enrollFileInput" type="file" accept="image/*" class="sr-only" />
+                </label>
+              </div>
+
+              <!-- Preview & Descriptor Status -->
+              <div id="enrollPreviewCard" class="hidden border border-slate-200 dark:border-slate-800 rounded-lg p-3 bg-slate-50 dark:bg-slate-950/80 flex items-center gap-4">
+                <img
+                  id="enrollPreviewImg"
+                  alt="Pratinjau wajah"
+                  class="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shrink-0"
+                />
+                <div class="min-w-0 flex-1">
+                  <div id="enrollExtractStatus" class="text-xs font-medium text-slate-800 dark:text-slate-200">
+                    Memproses ekstraksi wajah...
+                  </div>
+                  <div id="enrollDescriptorInfo" class="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                    Menunggu vektor wajah...
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="enrollFeedback" class="hidden text-xs rounded-lg px-3.5 py-2.5 border"></div>
+
+            <button
+              type="submit"
+              id="btnSaveStudent"
+              disabled
+              class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-pasundan-700 hover:bg-pasundan-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none rounded-lg transition-colors min-h-[42px]"
+            >
+              <i data-lucide="user-plus" class="w-4 h-4"></i>
+              <span id="btnSaveStudentLabel">Simpan Data Siswa ke Supabase</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Daftar Siswa & Guru Terdaftar -->
+        <div class="lg:col-span-6 bg-white dark:bg-[#0B1220] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Direktori Siswa &amp; Guru</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Siswa dan guru yang sudah memiliki profil vektor wajah di Supabase</p>
+            </div>
+            <span id="directoryCount" class="font-mono tabular-nums text-xs font-medium text-slate-600 dark:text-emerald-400">0 profil</span>
+          </div>
+
+          <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-2.5">
+            <div class="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-lg shrink-0" role="group" aria-label="Filter Peran Direktori">
+              <button type="button" data-dir-role="ALL" class="dir-role-btn px-2.5 py-1 text-xs font-medium rounded-md transition-colors">Semua</button>
+              <button type="button" data-dir-role="siswa" class="dir-role-btn px-2.5 py-1 text-xs font-medium rounded-md transition-colors">Siswa</button>
+              <button type="button" data-dir-role="guru" class="dir-role-btn px-2.5 py-1 text-xs font-medium rounded-md transition-colors">Guru</button>
+            </div>
+            <input
+              type="text"
+              id="directorySearchInput"
+              placeholder="Cari nama, NISN/NIP, atau kelas/mapel..."
+              class="flex-1 h-9 px-3 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div id="directoryList" class="divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[540px] overflow-y-auto">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 3: KONFIGURASI SUPABASE & PANDUAN SQL
+           ==================================================================== -->
+      <section id="tab-config" class="tab-panel hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Panduan Langkah demi Langkah Mengatur Supabase -->
+        <div class="lg:col-span-12 bg-white dark:bg-[#0B1220] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gradient-to-r from-white to-slate-50/70 dark:from-[#0B1220] dark:to-[#0F182B]">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-pasundan-50 dark:bg-emerald-500/15 border border-pasundan-100 dark:border-emerald-500/30 flex items-center justify-center shrink-0">
+                <i data-lucide="book-open" class="w-4 h-4 text-pasundan-700 dark:text-emerald-400"></i>
+              </div>
+              <div>
+                <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Panduan Pengaturan Supabase (4 Langkah)</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Ikuti urutan berikut untuk menghubungkan database absensi wajah Siswa &amp; Guru secara realtime.
+                </p>
+              </div>
+            </div>
+            <a
+              href="https://supabase.com/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-pasundan-800 dark:text-emerald-300 bg-pasundan-50 dark:bg-emerald-500/15 border border-pasundan-100 dark:border-emerald-500/35 hover:bg-pasundan-100 dark:hover:bg-emerald-500/25 rounded-lg transition-colors whitespace-nowrap self-start sm:self-center"
+            >
+              <span>Buka Supabase Dashboard</span>
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+
+          <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-4 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-pasundan-700 dark:bg-emerald-600 text-white font-mono text-xs font-semibold flex items-center justify-center shrink-0">1</span>
+                <h3 class="font-display text-sm font-semibold text-slate-900 dark:text-white">Buat Proyek Baru</h3>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Masuk ke <span class="font-medium">supabase.com</span>, klik <strong>New project</strong>, beri nama proyek sekolah, pilih region terdekat (mis. <em>Singapore</em>), lalu tunggu proyek aktif.
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-4 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-pasundan-700 dark:bg-emerald-600 text-white font-mono text-xs font-semibold flex items-center justify-center shrink-0">2</span>
+                <h3 class="font-display text-sm font-semibold text-slate-900 dark:text-white">Jalankan Skrip SQL</h3>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Buka menu <strong>SQL Editor</strong> &rarr; <strong>New query</strong> di Supabase, klik tombol <strong>Salin SQL</strong> di kanan bawah, tempel lalu klik <strong>Run</strong> hingga muncul <em>Success</em>.
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-4 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-pasundan-700 dark:bg-emerald-600 text-white font-mono text-xs font-semibold flex items-center justify-center shrink-0">3</span>
+                <h3 class="font-display text-sm font-semibold text-slate-900 dark:text-white">Salin URL &amp; Anon Key</h3>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Buka <strong>Project Settings</strong> &rarr; <strong>API</strong> (atau <em>Data API</em>). Salin <strong>Project URL</strong> dan kunci publik <strong>anon / publishable key</strong> (jangan pakai <em>service_role</em>).
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-4 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-pasundan-700 dark:bg-emerald-600 text-white font-mono text-xs font-semibold flex items-center justify-center shrink-0">4</span>
+                <h3 class="font-display text-sm font-semibold text-slate-900 dark:text-white">Simpan &amp; Uji Koneksi</h3>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Tempel kredensial pada form di bawah, lalu klik <strong>Simpan &amp; Hubungkan</strong>. Pastikan status berubah menjadi <span class="text-emerald-700 dark:text-emerald-400 font-medium">Terhubung (Realtime Aktif)</span>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Konfigurasi LocalStorage -->
+        <div class="lg:col-span-5 bg-white dark:bg-[#0B1220] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+            <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Konfigurasi Koneksi Supabase</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Kredensial disimpan secara lokal di browser ini (<code class="font-mono">localStorage</code>).
+            </p>
+          </div>
+
+          <form id="supabaseConfigForm" class="p-5 space-y-4">
+            <div>
+              <label for="cfgSupabaseUrl" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                SUPABASE_URL (Project URL)
+              </label>
+              <input
+                type="url"
+                id="cfgSupabaseUrl"
+                required
+                placeholder="https://xyzcompany.supabase.co"
+                class="w-full h-10 px-3 text-sm font-mono bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label for="cfgSupabaseKey" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                SUPABASE_ANON_KEY (Anon / Publishable Key)
+              </label>
+              <textarea
+                id="cfgSupabaseKey"
+                rows="3"
+                required
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                class="w-full p-3 text-xs font-mono bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              ></textarea>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="cfgThreshold" class="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Ambang Batas Kecocokan Wajah (Distance)
+                </label>
+                <span id="cfgThresholdValue" class="font-mono tabular-nums text-xs font-semibold text-slate-900 dark:text-emerald-400">0.48</span>
+              </div>
+              <input
+                type="range"
+                id="cfgThreshold"
+                min="0.35"
+                max="0.62"
+                step="0.01"
+                value="0.48"
+                class="w-full accent-emerald-600"
+              />
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Nilai lebih kecil lebih ketat (mengurangi salah kenali), nilai default ideal: <span class="font-mono">0.48</span>.
+              </p>
+            </div>
+
+            <div id="configFeedback" class="hidden text-xs rounded-lg px-3.5 py-2.5 border"></div>
+
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <button
+                type="submit"
+                class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-pasundan-700 hover:bg-pasundan-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors min-h-[40px] whitespace-nowrap"
+              >
+                Simpan &amp; Hubungkan
+              </button>
+              <button
+                type="button"
+                id="btnResetConfig"
+                class="px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700 rounded-lg transition-colors min-h-[40px] whitespace-nowrap"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Skrip SQL Supabase Siap Copy -->
+        <div class="lg:col-span-7 bg-white dark:bg-[#0B1220] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="font-display text-base font-semibold text-slate-900 dark:text-white">Skrip SQL Migrasi Supabase</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Salin dan jalankan di menu <strong>SQL Editor</strong> pada proyek Supabase sekolah Anda.
+              </p>
+            </div>
+            <button
+              type="button"
+              id="btnCopySql"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0 min-h-[36px]"
+            >
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span id="copySqlLabel">Salin SQL</span>
+            </button>
+          </div>
+          <div class="p-4 bg-slate-950 border-t border-slate-900 overflow-x-auto">
+            <pre id="sqlCodeBlock" class="text-xs font-mono text-slate-100 leading-relaxed whitespace-pre">-- Tabel Master Siswa &amp; Guru
+CREATE TABLE IF NOT EXISTS public.students (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nisn TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  class_name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'siswa' CHECK (role IN ('siswa', 'guru')),
+  face_descriptor JSONB NOT NULL,
+  photo_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Migrasi aman jika tabel students sudah ada sebelumnya
+ALTER TABLE public.students
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'siswa';
+
+-- Tabel Log Kehadiran Siswa &amp; Guru
+CREATE TABLE IF NOT EXISTS public.attendances (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  class_name TEXT NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  time TIME NOT NULL DEFAULT CURRENT_TIME,
+  status TEXT NOT NULL DEFAULT 'Hadir',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT attendances_student_date_unique UNIQUE (student_id, date)
+);
+
+-- Aktifkan Row Level Security (RLS) untuk akses browser sekolah
+ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendances ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon access students" ON public.students;
+CREATE POLICY "Allow anon access students" ON public.students
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon access attendances" ON public.attendances;
+CREATE POLICY "Allow anon access attendances" ON public.attendances
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- Aktifkan Realtime untuk tabel attendances &amp; students secara aman (idempoten)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'attendances'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.attendances;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'students'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.students;
+  END IF;
+END $$;</pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ======================================================================
+         APPLICATION SCRIPT (ES6 MODULE)
+         Terstruktur: Config -> Audio -> Face-API Init -> Supabase -> Presensi -> Enrollment
+         ====================================================================== -->
+    <script type="module">
+      /* ----------------------------------------------------------------------
+         1. KONFIGURASI & STATE APLIKASI
+         ---------------------------------------------------------------------- */
+      const STORAGE_KEYS = {
+        URL: 'pasundan9_supabase_url',
+        KEY: 'pasundan9_supabase_anon_key',
+        THRESHOLD: 'pasundan9_face_threshold',
+        THEME: 'pasundan9_theme',
+        DESKTOP_NOTIF: 'pasundan9_desktop_notif',
+      };
+
+      const SCHOOL_LOGO_URL = '/school-attendance-icon.svg';
+
+      // URL CDN bobot model @vladmandic/face-api
+      const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+
+      const state = {
+        activeTab: 'presensi',
+        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+        modelsLoaded: false,
+        supabaseConnected: false,
+        realtimeStatus: 'DISCONNECTED',
+        supabaseClient: null,
+        realtimeChannel: null,
+
+        students: [],            // Array siswa & guru dari tabel students
+        studentsById: new Map(), // Lookup O(1) berdasar UUID
+        attendancesToday: new Map(), // student_id -> attendance row
+        pendingInserts: new Set(),   // Anti-spam request saat insert berlangsung
+        toastCooldown: new Map(),    // Anti-spam popup visual/audio
+        notifiedStudentsToday: new Set(), // Anti-duplikat notifikasi desktop per orang/hari
+        hasRoleColumn: true,     // Otomatis dicek saat memuat data dari Supabase
+
+        faceMatcher: null,
+        threshold: parseFloat(localStorage.getItem(STORAGE_KEYS.THRESHOLD) || '0.48'),
+        audioEnabled: true,
+        desktopNotifEnabled: localStorage.getItem(STORAGE_KEYS.DESKTOP_NOTIF) === 'true',
+
+        // Kamera Presensi
+        attendanceStream: null,
+        isCameraRunning: false,
+        isCameraStarting: false,
+        cameraPermissionUnlocked: false,
+        cameraPermissionState: 'unknown',
+        permissionWatcherAttached: false,
+        detectionTimer: null,
+        alertTimer: null,
+
+        // Enrollment
+        enrollRole: 'siswa',     // 'siswa' | 'guru'
+        photoMode: 'webcam',
+        enrollStream: null,
+        extractedDescriptor: null,
+        extractedPhotoDataUrl: null,
+
+        // Filter UI
+        roleFilter: 'ALL',       // 'ALL' | 'siswa' | 'guru'
+        searchQuery: '',
+        classFilter: 'ALL',
+        statusFilter: 'ALL',
+        directoryRoleFilter: 'ALL',
+        directoryQuery: '',
+        deleteConfirmId: null,
+
+        // Ringkasan Mingguan (7 hari terakhir)
+        weeklyAttendances: [],
+        weeklyLoading: false,
+        weeklyError: null,
+      };
+
+      /* ----------------------------------------------------------------------
+         2. HELPER TANGGAL / WAKTU WIB (BANDUNG) & UTILITAS
+         ---------------------------------------------------------------------- */
+      function getTodayDateWIB() {
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Jakarta',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date());
+      }
+
+      function getCurrentTimeWIB() {
+        return new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Asia/Jakarta',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).format(new Date());
+      }
+
+      function formatLongDateID() {
+        return new Intl.DateTimeFormat('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }).format(new Date());
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function getInitials(name) {
+        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return 'S';
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+
+      function normalizePersonRole(person) {
+        return person?.role === 'guru' ? 'guru' : 'siswa';
+      }
+
+      function getRoleLabel(role) {
+        return role === 'guru' ? 'Guru' : 'Siswa';
+      }
+
+      // Web Audio API Chime saat absensi berhasil (tanpa file audio eksternal)
+      let audioCtx = null;
+      function playSuccessChime() {
+        if (!state.audioEnabled) return;
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          if (!audioCtx) audioCtx = new AudioContextClass();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+
+          const now = audioCtx.currentTime;
+          const notes = [587.33, 880]; // D5 -> A5 jernih
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+            gain.gain.setValueAtTime(0.001, now + idx * 0.11);
+            gain.gain.exponentialRampToValueAtTime(0.18, now + idx * 0.11 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.28);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.11);
+            osc.stop(now + idx * 0.11 + 0.3);
+          });
+        } catch {
+          // Abaikan jika browser memblokir autoplay audio
+        }
+      }
+
+      /* ----------------------------------------------------------------------
+         3. REFERENSI DOM
+         ---------------------------------------------------------------------- */
+      const el = {
+        brandLink: document.getElementById('brandLink'),
+        btnThemeToggle: document.getElementById('btnThemeToggle'),
+        themeIconWrap: document.getElementById('themeIconWrap'),
+        themeLabel: document.getElementById('themeLabel'),
+        todayDateLabel: document.getElementById('todayDateLabel'),
+        liveClock: document.getElementById('liveClock'),
+        modelStatusText: document.getElementById('modelStatusText'),
+        supabaseStatusBtn: document.getElementById('supabaseStatusBtn'),
+        globalBanner: document.getElementById('globalBanner'),
+        globalBannerText: document.getElementById('globalBannerText'),
+        globalBannerAction: document.getElementById('globalBannerAction'),
+        btnExportCsv: document.getElementById('btnExportCsv'),
+
+        // Presensi
+        attendanceVideo: document.getElementById('attendanceVideo'),
+        attendanceCanvas: document.getElementById('attendanceCanvas'),
+        cameraPlaceholder: document.getElementById('cameraPlaceholder'),
+        btnPlaceholderStartCamera: document.getElementById('btnPlaceholderStartCamera'),
+        scanBeam: document.getElementById('scanBeam'),
+        cameraSelect: document.getElementById('cameraSelect'),
+        btnDetectCameras: document.getElementById('btnDetectCameras'),
+        detectorSelect: document.getElementById('detectorSelect'),
+        btnStartCamera: document.getElementById('btnStartCamera'),
+        btnStopCamera: document.getElementById('btnStopCamera'),
+        cameraPermissionBox: document.getElementById('cameraPermissionBox'),
+        cameraPermissionTitle: document.getElementById('cameraPermissionTitle'),
+        cameraPermissionDesc: document.getElementById('cameraPermissionDesc'),
+        btnRequestCameraPermission: document.getElementById('btnRequestCameraPermission'),
+        cameraNewTabRow: document.getElementById('cameraNewTabRow'),
+        openNewTabCameraLink: document.getElementById('openNewTabCameraLink'),
+        btnToggleAudio: document.getElementById('btnToggleAudio'),
+        audioIconWrap: document.getElementById('audioIconWrap'),
+        audioLabel: document.getElementById('audioLabel'),
+        detectionStateLabel: document.getElementById('detectionStateLabel'),
+        enrolledMatcherCount: document.getElementById('enrolledMatcherCount'),
+
+        // Success Popup Alert
+        successAlert: document.getElementById('successAlert'),
+        alertRoleLabel: document.getElementById('alertRoleLabel'),
+        alertStudentName: document.getElementById('alertStudentName'),
+        alertStudentClass: document.getElementById('alertStudentClass'),
+        alertStudentNisn: document.getElementById('alertStudentNisn'),
+        alertStudentTime: document.getElementById('alertStudentTime'),
+
+        // Log Kehadiran
+        attendanceClassSubtitle: document.getElementById('attendanceClassSubtitle'),
+        btnToggleDesktopNotif: document.getElementById('btnToggleDesktopNotif'),
+        desktopNotifIconWrap: document.getElementById('desktopNotifIconWrap'),
+        desktopNotifLabel: document.getElementById('desktopNotifLabel'),
+        btnRefreshAttendance: document.getElementById('btnRefreshAttendance'),
+        statRoleBreakdown: document.getElementById('statRoleBreakdown'),
+        statTotalLabel: document.getElementById('statTotalLabel'),
+        statTotal: document.getElementById('statTotal'),
+        statPresent: document.getElementById('statPresent'),
+        statPresentPct: document.getElementById('statPresentPct'),
+        statAbsent: document.getElementById('statAbsent'),
+        attendanceProgressBar: document.getElementById('attendanceProgressBar'),
+        searchStudentInput: document.getElementById('searchStudentInput'),
+        classFilterSelect: document.getElementById('classFilterSelect'),
+        attendanceTableBody: document.getElementById('attendanceTableBody'),
+        attendanceEmptyState: document.getElementById('attendanceEmptyState'),
+        attendanceEmptyTitle: document.getElementById('attendanceEmptyTitle'),
+        attendanceEmptyDesc: document.getElementById('attendanceEmptyDesc'),
+        btnEmptyAction: document.getElementById('btnEmptyAction'),
+
+        // Enrollment
+        enrollmentForm: document.getElementById('enrollmentForm'),
+        enrollIdLabel: document.getElementById('enrollIdLabel'),
+        enrollClassLabel: document.getElementById('enrollClassLabel'),
+        enrollNameLabel: document.getElementById('enrollNameLabel'),
+        enrollNisn: document.getElementById('enrollNisn'),
+        enrollClass: document.getElementById('enrollClass'),
+        enrollName: document.getElementById('enrollName'),
+        enrollWebcamBox: document.getElementById('enrollWebcamBox'),
+        enrollUploadBox: document.getElementById('enrollUploadBox'),
+        enrollVideo: document.getElementById('enrollVideo'),
+        enrollVideoPlaceholder: document.getElementById('enrollVideoPlaceholder'),
+        btnEnrollStartCam: document.getElementById('btnEnrollStartCam'),
+        btnEnrollCapture: document.getElementById('btnEnrollCapture'),
+        enrollFileInput: document.getElementById('enrollFileInput'),
+        enrollPreviewCard: document.getElementById('enrollPreviewCard'),
+        enrollPreviewImg: document.getElementById('enrollPreviewImg'),
+        enrollExtractStatus: document.getElementById('enrollExtractStatus'),
+        enrollDescriptorInfo: document.getElementById('enrollDescriptorInfo'),
+        enrollFeedback: document.getElementById('enrollFeedback'),
+        btnSaveStudent: document.getElementById('btnSaveStudent'),
+        btnSaveStudentLabel: document.getElementById('btnSaveStudentLabel'),
+        directoryCount: document.getElementById('directoryCount'),
+        directorySearchInput: document.getElementById('directorySearchInput'),
+        directoryList: document.getElementById('directoryList'),
+
+        // Config
+        supabaseConfigForm: document.getElementById('supabaseConfigForm'),
+        cfgSupabaseUrl: document.getElementById('cfgSupabaseUrl'),
+        cfgSupabaseKey: document.getElementById('cfgSupabaseKey'),
+        cfgThreshold: document.getElementById('cfgThreshold'),
+        cfgThresholdValue: document.getElementById('cfgThresholdValue'),
+        configFeedback: document.getElementById('configFeedback'),
+        btnResetConfig: document.getElementById('btnResetConfig'),
+        btnCopySql: document.getElementById('btnCopySql'),
+        copySqlLabel: document.getElementById('copySqlLabel'),
+        sqlCodeBlock: document.getElementById('sqlCodeBlock'),
+      };
+
+      /* ----------------------------------------------------------------------
+         4. NAVIGASI TAB & UI HELPERS
+         ---------------------------------------------------------------------- */
+      function applyTheme(theme) {
+        state.theme = theme === 'dark' ? 'dark' : 'light';
+        const isDark = state.theme === 'dark';
+        document.documentElement.classList.toggle('dark', isDark);
+        try {
+          localStorage.setItem(STORAGE_KEYS.THEME, state.theme);
+        } catch {}
+
+        el.btnThemeToggle.setAttribute('aria-pressed', String(isDark));
+        el.themeLabel.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
+        el.themeIconWrap.innerHTML = isDark
+          ? '<i data-lucide="sun" class="w-4 h-4 text-amber-400"></i>'
+          : '<i data-lucide="moon" class="w-4 h-4 text-slate-600"></i>';
+        if (window.lucide) window.lucide.createIcons();
+        publishWeeklyChartPayload();
+      }
+
+      function switchTab(tabName) {
+        const prevTab = state.activeTab;
+        state.activeTab = tabName;
+
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+          const isTarget = panel.id === `tab-${tabName}`;
+          panel.classList.toggle('hidden', !isTarget);
+          panel.classList.remove('tab-panel-enter');
+          if (isTarget) {
+            // Trigger reflow agar animasi fade-in diputar ulang setiap berpindah tab
+            void panel.offsetWidth;
+            panel.classList.add('tab-panel-enter');
+          }
+        });
+
+        document.querySelectorAll('.nav-tab').forEach((btn) => {
+          const isActive = btn.dataset.tab === tabName;
+          btn.setAttribute('aria-current', isActive ? 'page' : 'false');
+          btn.classList.toggle('bg-pasundan-50', isActive);
+          btn.classList.toggle('dark:bg-emerald-500/15', isActive);
+          btn.classList.toggle('text-pasundan-800', isActive);
+          btn.classList.toggle('dark:text-emerald-300', isActive);
+          btn.classList.toggle('font-semibold', isActive);
+          btn.classList.toggle('shadow-[inset_0_-2px_0_0_rgba(16,185,129,0.85)]', isActive);
+          btn.classList.toggle('text-slate-600', !isActive);
+          btn.classList.toggle('dark:text-slate-300', !isActive);
+          btn.classList.toggle('hover:text-slate-900', !isActive);
+          btn.classList.toggle('dark:hover:text-white', !isActive);
+          btn.classList.toggle('hover:bg-slate-100', !isActive);
+          btn.classList.toggle('dark:hover:bg-slate-900', !isActive);
+        });
+
+        if (tabName === 'presensi' && prevTab !== 'presensi') {
+          requestAnimationFrame(() => {
+            window.dispatchEvent(new Event('resize'));
+          });
+        }
+
+        // Hentikan webcam enrollment jika berpindah keluar tab enrollment
+        if (tabName !== 'enrollment') {
+          stopEnrollCamera();
+        }
+        // Hentikan kamera presensi jika berpindah ke enrollment agar kamera tidak bentrok
+        if (tabName === 'enrollment' && state.isCameraRunning) {
+          stopAttendanceCamera();
+        }
+      }
+
+      function renderRoleFilterButtons() {
+        document.querySelectorAll('.role-filter-btn').forEach((btn) => {
+          const active = btn.dataset.roleFilter === state.roleFilter;
+          btn.classList.toggle('bg-white', active);
+          btn.classList.toggle('dark:bg-emerald-600', active);
+          btn.classList.toggle('text-slate-900', active);
+          btn.classList.toggle('dark:text-white', active);
+          btn.classList.toggle('shadow-sm', active);
+          btn.classList.toggle('text-slate-600', !active);
+          btn.classList.toggle('dark:text-slate-300', !active);
+          btn.classList.toggle('hover:text-slate-900', !active);
+          btn.classList.toggle('dark:hover:text-white', !active);
+        });
+      }
+
+      function renderEnrollRoleUI() {
+        const isGuru = state.enrollRole === 'guru';
+        document.querySelectorAll('.enroll-role-btn').forEach((btn) => {
+          const active = btn.dataset.enrollRole === state.enrollRole;
+          btn.classList.toggle('bg-white', active);
+          btn.classList.toggle('dark:bg-emerald-600', active);
+          btn.classList.toggle('text-slate-900', active);
+          btn.classList.toggle('dark:text-white', active);
+          btn.classList.toggle('shadow-sm', active);
+          btn.classList.toggle('text-slate-600', !active);
+          btn.classList.toggle('dark:text-slate-300', !active);
+        });
+
+        el.enrollIdLabel.textContent = isGuru ? 'NIP / NUPTK / ID Guru' : 'NISN Siswa';
+        el.enrollNisn.placeholder = isGuru ? 'Contoh: 198504122010011008' : 'Contoh: 0078123456';
+        el.enrollClassLabel.textContent = isGuru ? 'Mata Pelajaran / Jabatan' : 'Kelas';
+        el.enrollClass.placeholder = isGuru ? 'Contoh: Matematika / Wali Kelas' : 'Contoh: XII IPA 1';
+        el.enrollClass.setAttribute('list', isGuru ? 'teacherUnitList' : 'pasundanClassList');
+        el.enrollNameLabel.textContent = isGuru ? 'Nama Lengkap & Gelar Guru' : 'Nama Lengkap Siswa';
+        el.enrollName.placeholder = isGuru ? 'Contoh: Dra. Siti Nurhayati, M.Pd.' : 'Contoh: Mochammad Rizky Pratama';
+        el.btnSaveStudentLabel.textContent = isGuru ? 'Simpan Data Guru ke Supabase' : 'Simpan Data Siswa ke Supabase';
+      }
+
+      function renderDirectoryRoleButtons() {
+        document.querySelectorAll('.dir-role-btn').forEach((btn) => {
+          const active = btn.dataset.dirRole === state.directoryRoleFilter;
+          btn.classList.toggle('bg-white', active);
+          btn.classList.toggle('dark:bg-emerald-600', active);
+          btn.classList.toggle('text-slate-900', active);
+          btn.classList.toggle('dark:text-white', active);
+          btn.classList.toggle('shadow-sm', active);
+          btn.classList.toggle('text-slate-600', !active);
+          btn.classList.toggle('dark:text-slate-300', !active);
+        });
+      }
+
+      function renderStatusFilterButtons() {
+        document.querySelectorAll('.status-filter-btn').forEach((btn) => {
+          const active = btn.dataset.statusFilter === state.statusFilter;
+          btn.classList.toggle('bg-white', active);
+          btn.classList.toggle('dark:bg-emerald-600', active);
+          btn.classList.toggle('text-slate-900', active);
+          btn.classList.toggle('dark:text-white', active);
+          btn.classList.toggle('shadow-sm', active);
+          btn.classList.toggle('text-slate-600', !active);
+          btn.classList.toggle('dark:text-slate-300', !active);
+          btn.classList.toggle('hover:text-slate-900', !active);
+          btn.classList.toggle('dark:hover:text-white', !active);
+        });
+      }
+
+      function renderPhotoModeButtons() {
+        document.querySelectorAll('.photo-mode-btn').forEach((btn) => {
+          const active = btn.dataset.photoMode === state.photoMode;
+          btn.classList.toggle('bg-white', active);
+          btn.classList.toggle('dark:bg-emerald-600', active);
+          btn.classList.toggle('text-slate-900', active);
+          btn.classList.toggle('dark:text-white', active);
+          btn.classList.toggle('shadow-sm', active);
+          btn.classList.toggle('text-slate-600', !active);
+          btn.classList.toggle('dark:text-slate-300', !active);
+        });
+        el.enrollWebcamBox.classList.toggle('hidden', state.photoMode !== 'webcam');
+        el.enrollUploadBox.classList.toggle('hidden', state.photoMode !== 'upload');
+        if (state.photoMode !== 'webcam') {
+          stopEnrollCamera();
+        }
+      }
+
+      function showBanner(text, actionLabel = 'Buka Konfigurasi', onAction = () => switchTab('config')) {
+        el.globalBannerText.textContent = text;
+        el.globalBannerAction.textContent = actionLabel;
+        el.globalBannerAction.onclick = onAction;
+        el.globalBanner.classList.remove('hidden');
+      }
+
+      function hideBanner() {
+        el.globalBanner.classList.add('hidden');
+      }
+
+      function showInlineFeedback(node, type, message) {
+        node.className = 'text-xs rounded-lg px-3.5 py-2.5 border';
+        if (type === 'success') {
+          node.classList.add(
+            'bg-pasundan-50',
+            'dark:bg-emerald-950/70',
+            'border-pasundan-100',
+            'dark:border-emerald-500/40',
+            'text-pasundan-800',
+            'dark:text-emerald-200'
+          );
+        } else if (type === 'error') {
+          node.classList.add(
+            'bg-red-50',
+            'dark:bg-red-950/70',
+            'border-red-200',
+            'dark:border-red-500/40',
+            'text-red-800',
+            'dark:text-red-200'
+          );
+        } else {
+          node.classList.add(
+            'bg-slate-50',
+            'dark:bg-slate-900',
+            'border-slate-200',
+            'dark:border-slate-700',
+            'text-slate-700',
+            'dark:text-slate-200'
+          );
+        }
+        node.textContent = message;
+        node.classList.remove('hidden');
+      }
+
+      /* ----------------------------------------------------------------------
+         5. INISIALISASI MODEL FACE-API.JS
+         ---------------------------------------------------------------------- */
+      async function initFaceApiModels() {
+        try {
+          el.modelStatusText.textContent = 'Memuat bobot AI...';
+          el.modelStatusText.className = 'font-medium text-amber-700 dark:text-amber-300';
+
+          if (!window.faceapi) {
+            throw new Error('Library face-api.js belum termuat dari CDN.');
+          }
+
+          await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
+            faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+            faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+            faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
+          ]);
+
+          state.modelsLoaded = true;
+          el.modelStatusText.textContent = 'Siap (Client-Side)';
+          el.modelStatusText.className = 'font-medium text-pasundan-700 dark:text-emerald-400';
+          rebuildFaceMatcher();
+        } catch (err) {
+          console.error('Gagal memuat model face-api.js:', err);
+          state.modelsLoaded = false;
+          el.modelStatusText.textContent = 'Gagal memuat model';
+          el.modelStatusText.className = 'font-medium text-red-700 dark:text-red-400';
+          showBanner(
+            'Model face-api.js gagal dimuat dari CDN. Periksa koneksi internet sekolah lalu muat ulang halaman.',
+            'Coba Muat Ulang Model',
+            () => initFaceApiModels()
+          );
+        }
+      }
+
+      function rebuildFaceMatcher() {
+        if (!state.modelsLoaded || !window.faceapi) {
+          el.enrolledMatcherCount.textContent = `${state.students.length} profil menunggu model`;
+          return;
+        }
+
+        const labeledDescriptors = [];
+        for (const student of state.students) {
+          let desc = student.face_descriptor;
+          if (typeof desc === 'string') {
+            try {
+              desc = JSON.parse(desc);
+            } catch {
+              desc = null;
+            }
+          }
+          if (Array.isArray(desc) && desc.length === 128) {
+            const floatArr = new Float32Array(desc.map(Number));
+            labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(student.id, [floatArr]));
+          }
+        }
+
+        state.faceMatcher =
+          labeledDescriptors.length > 0
+            ? new faceapi.FaceMatcher(labeledDescriptors, state.threshold)
+            : null;
+
+        el.enrolledMatcherCount.textContent = `${labeledDescriptors.length} profil wajah aktif`;
+      }
+
+      /* ----------------------------------------------------------------------
+         6. KONEKSI SUPABASE & REALTIME LISTENER
+         ---------------------------------------------------------------------- */
+      function updateSupabaseStatusUI(label, tone) {
+        el.supabaseStatusBtn.textContent = label;
+        el.supabaseStatusBtn.className = 'font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded';
+        if (tone === 'ok') {
+          el.supabaseStatusBtn.classList.add('text-pasundan-700', 'dark:text-emerald-400');
+        } else if (tone === 'warn') {
+          el.supabaseStatusBtn.classList.add('text-amber-700', 'dark:text-amber-300');
+        } else {
+          el.supabaseStatusBtn.classList.add('text-red-700', 'dark:text-red-400');
+        }
+      }
+
+      async function initSupabaseFromStorage() {
+        const url = (localStorage.getItem(STORAGE_KEYS.URL) || '').trim();
+        const key = (localStorage.getItem(STORAGE_KEYS.KEY) || '').trim();
+
+        el.cfgSupabaseUrl.value = url;
+        el.cfgSupabaseKey.value = key;
+        el.cfgThreshold.value = String(state.threshold);
+        el.cfgThresholdValue.textContent = state.threshold.toFixed(2);
+
+        if (!url || !key) {
+          state.supabaseConnected = false;
+          state.supabaseClient = null;
+          updateSupabaseStatusUI('Belum Dikonfigurasi', 'warn');
+          showBanner(
+            'Koneksi Supabase belum diatur. Masukkan SUPABASE_URL dan SUPABASE_ANON_KEY pada tab Konfigurasi Supabase.',
+            'Atur Supabase',
+            () => switchTab('config')
+          );
+          renderAttendanceTable();
+          renderDirectoryList();
+          publishWeeklyChartPayload();
+          return;
+        }
+
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+          updateSupabaseStatusUI('SDK Gagal Dimuat', 'error');
+          return;
+        }
+
+        try {
+          if (state.realtimeChannel && state.supabaseClient) {
+            await state.supabaseClient.removeChannel(state.realtimeChannel);
+            state.realtimeChannel = null;
+          }
+
+          state.supabaseClient = window.supabase.createClient(url, key);
+          updateSupabaseStatusUI('Menghubungkan...', 'warn');
+
+          state.supabaseConnected = true;
+          await loadInitialSchoolData();
+          subscribeRealtimeChannels();
+
+          if (state.hasRoleColumn) {
+            hideBanner();
+          }
+        } catch (err) {
+          console.error('Supabase init error:', err);
+          state.supabaseConnected = false;
+          updateSupabaseStatusUI('Koneksi Gagal', 'error');
+          showBanner(
+            `Gagal terhubung ke Supabase: ${err.message || 'Periksa URL, Anon Key, dan pastikan tabel sudah dibuat dengan Skrip SQL.'}`,
+            'Periksa Konfigurasi',
+            () => switchTab('config')
+          );
+          renderAttendanceTable();
+          renderDirectoryList();
+          publishWeeklyChartPayload();
+        }
+      }
+
+      function getRecentDatesWIB(daysCount = 7) {
+        const result = [];
+        const now = new Date();
+        for (let offset = daysCount - 1; offset >= 0; offset -= 1) {
+          const d = new Date(now.getTime() - offset * 86400000);
+          const date = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Jakarta',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(d);
+          const dayShort = new Intl.DateTimeFormat('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            weekday: 'short',
+          }).format(d);
+          const dateShort = new Intl.DateTimeFormat('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            day: '2-digit',
+            month: '2-digit',
+          }).format(d);
+          const fullDateLabel = new Intl.DateTimeFormat('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }).format(d);
+          result.push({
+            date,
+            dayShort,
+            dateShort,
+            axisLabel: `${dayShort} ${dateShort}`,
+            fullDateLabel,
+          });
+        }
+        return result;
+      }
+
+      function publishWeeklyChartPayload() {
+        const scopedStudents = state.students.filter((s) => {
+          if (state.roleFilter !== 'ALL' && normalizePersonRole(s) !== state.roleFilter) {
+            return false;
+          }
+          return state.classFilter === 'ALL' || s.class_name === state.classFilter;
+        });
+        const totalSiswa = scopedStudents.length;
+        const scopedIds = new Set(scopedStudents.map((s) => s.id));
+        const recentDates = getRecentDatesWIB(7);
+        const todayStr = getTodayDateWIB();
+
+        const byDate = new Map();
+        for (const item of recentDates) {
+          byDate.set(item.date, new Set());
+        }
+
+        for (const row of state.weeklyAttendances || []) {
+          if (!row || !byDate.has(row.date)) continue;
+          const person = state.studentsById.get(row.student_id);
+          if (state.roleFilter !== 'ALL') {
+            if (!person || normalizePersonRole(person) !== state.roleFilter) continue;
+          }
+          if (state.classFilter !== 'ALL') {
+            const matchesClass = row.class_name === state.classFilter || scopedIds.has(row.student_id);
+            if (!matchesClass) continue;
+          }
+          byDate.get(row.date).add(row.student_id);
+        }
+
+        // Sinkronisasi instan hari ini dari state.attendancesToday
+        if (byDate.has(todayStr)) {
+          const todaySet = byDate.get(todayStr);
+          for (const [studentId, row] of state.attendancesToday.entries()) {
+            const person = state.studentsById.get(studentId);
+            if (state.roleFilter !== 'ALL') {
+              if (!person || normalizePersonRole(person) !== state.roleFilter) continue;
+            }
+            if (state.classFilter !== 'ALL') {
+              const className = person?.class_name || row.class_name;
+              if (className !== state.classFilter) continue;
+            }
+            todaySet.add(studentId);
+          }
+        }
+
+        const days = recentDates.map((d) => {
+          const hadir = byDate.get(d.date)?.size || 0;
+          const belumHadir = Math.max(0, totalSiswa - hadir);
+          const denominator = Math.max(totalSiswa, hadir);
+          const persentase = denominator > 0 ? Math.round((hadir / denominator) * 100) : 0;
+          return {
+            ...d,
+            hadir,
+            belumHadir,
+            totalSiswa: denominator,
+            persentase,
+          };
+        });
+
+        const payload = {
+          isDark: state.theme === 'dark',
+          supabaseConnected: Boolean(state.supabaseConnected && state.supabaseClient),
+          loading: Boolean(state.weeklyLoading),
+          error: state.weeklyError || null,
+          roleFilter: state.roleFilter,
+          classFilter: state.classFilter,
+          totalStudents: totalSiswa,
+          days,
+        };
+
+        window.__PASUNDAN9_CHART_PAYLOAD__ = payload;
+        window.dispatchEvent(new CustomEvent('pasundan9:weekly-chart-update', { detail: payload }));
+      }
+
+      async function loadWeeklyAttendanceSummary() {
+        if (!state.supabaseClient) {
+          state.weeklyAttendances = [];
+          publishWeeklyChartPayload();
+          return;
+        }
+        const recentDates = getRecentDatesWIB(7);
+        const startDate = recentDates[0].date;
+        const endDate = recentDates[recentDates.length - 1].date;
+
+        state.weeklyLoading = true;
+        state.weeklyError = null;
+        publishWeeklyChartPayload();
+
+        try {
+          const { data, error } = await state.supabaseClient
+            .from('attendances')
+            .select('date, student_id, class_name, status')
+            .gte('date', startDate)
+            .lte('date', endDate);
+          if (error) throw error;
+          state.weeklyAttendances = data || [];
+        } catch (err) {
+          console.error('Gagal memuat grafik mingguan:', err);
+          state.weeklyError = `Gagal memuat ringkasan mingguan: ${err?.message || 'Periksa koneksi Supabase.'}`;
+        } finally {
+          state.weeklyLoading = false;
+          publishWeeklyChartPayload();
+        }
+      }
+
+      async function loadInitialSchoolData() {
+        if (!state.supabaseClient) return;
+        const todayStr = getTodayDateWIB();
+
+        const [studentsWithRoleRes, attendancesRes] = await Promise.all([
+          state.supabaseClient
+            .from('students')
+            .select('id, nisn, name, class_name, role, face_descriptor, photo_url, created_at')
+            .order('name', { ascending: true }),
+          state.supabaseClient
+            .from('attendances')
+            .select('id, student_id, class_name, date, time, status')
+            .eq('date', todayStr),
+        ]);
+
+        let rawPeople = studentsWithRoleRes.data || [];
+        if (studentsWithRoleRes.error) {
+          const errMsg = String(studentsWithRoleRes.error.message || '').toLowerCase();
+          if (studentsWithRoleRes.error.code === '42703' || errMsg.includes('role')) {
+            state.hasRoleColumn = false;
+            const fallbackRes = await state.supabaseClient
+              .from('students')
+              .select('id, nisn, name, class_name, face_descriptor, photo_url, created_at')
+              .order('name', { ascending: true });
+            if (fallbackRes.error) throw fallbackRes.error;
+            rawPeople = fallbackRes.data || [];
+            showBanner(
+              'Kolom "role" belum ada di tabel Supabase Anda. Jalankan ulang Skrip SQL terbaru di Konfigurasi Supabase untuk mengaktifkan absensi Guru.',
+              'Buka Skrip SQL',
+              () => switchTab('config')
+            );
+          } else {
+            throw studentsWithRoleRes.error;
+          }
+        } else {
+          state.hasRoleColumn = true;
+        }
+
+        if (attendancesRes.error) throw attendancesRes.error;
+
+        state.students = rawPeople.map((p) => ({
+          ...p,
+          role: normalizePersonRole(p),
+        }));
+        state.studentsById = new Map(state.students.map((s) => [s.id, s]));
+
+        state.attendancesToday = new Map();
+        for (const row of attendancesRes.data || []) {
+          state.attendancesToday.set(row.student_id, row);
+        }
+
+        populateClassFilterOptions();
+        rebuildFaceMatcher();
+        renderAttendanceTable();
+        renderDirectoryList();
+        await loadWeeklyAttendanceSummary();
+      }
+
+      function subscribeRealtimeChannels() {
+        if (!state.supabaseClient) return;
+
+        state.realtimeChannel = state.supabaseClient
+          .channel('pasundan9-realtime-attendance')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'attendances' },
+            (payload) => {
+              const newRow = payload.new;
+              if (newRow && newRow.date === getTodayDateWIB()) {
+                handleRealtimeAttendanceInsert(newRow);
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'students' },
+            () => {
+              // Sinkronisasi daftar siswa jika guru menambah/menghapus siswa dari tab/perangkat lain
+              loadInitialSchoolData().catch(console.error);
+            }
+          )
+          .subscribe((status) => {
+            state.realtimeStatus = status;
+            if (status === 'SUBSCRIBED') {
+              updateSupabaseStatusUI('Terhubung (Realtime Aktif)', 'ok');
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              updateSupabaseStatusUI('Terhubung (Polling)', 'warn');
+            }
+          });
+      }
+
+      function handleRealtimeAttendanceInsert(row) {
+        const alreadyRecorded = state.attendancesToday.has(row.student_id);
+        state.attendancesToday.set(row.student_id, row);
+        renderAttendanceTable();
+        publishWeeklyChartPayload();
+
+        // Jika datang dari perangkat/tab lain dan belum muncul toast lokal
+        if (!alreadyRecorded) {
+          const student = state.studentsById.get(row.student_id);
+          if (student) {
+            triggerVerificationAlert(student, row.time);
+          }
+        }
+      }
+
+      /* ----------------------------------------------------------------------
+         7. KAMERA PRESENSI & DETEKSI WAJAH REALTIME
+         ---------------------------------------------------------------------- */
+      function isCameraPolicyAllowed() {
+        try {
+          if (document.permissionsPolicy && typeof document.permissionsPolicy.allowsFeature === 'function') {
+            return document.permissionsPolicy.allowsFeature('camera');
+          }
+          if (document.featurePolicy && typeof document.featurePolicy.allowsFeature === 'function') {
+            return document.featurePolicy.allowsFeature('camera');
+          }
+        } catch {}
+        return true;
+      }
+
+      function describeCameraError(err) {
+        if (!window.isSecureContext) {
+          return 'Browser memblokir kamera karena halaman tidak dibuka lewat HTTPS atau localhost.';
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          return 'Browser ini tidak mendukung akses webcam (MediaDevices API tidak tersedia).';
+        }
+        const name = err?.name || '';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+          return 'Izin kamera ditolak atau belum diberikan. Klik ikon kamera/gembok pada address bar browser lalu pilih Izinkan (Allow), kemudian klik Coba Lagi.';
+        }
+        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          return 'Tidak ada perangkat kamera yang terhubung. Pastikan webcam terpasang dan aktif di sistem.';
+        }
+        if (name === 'NotReadableError' || name === 'TrackStartError') {
+          return 'Kamera sedang digunakan oleh aplikasi lain (misal Zoom/Meet/tab lain). Tutup aplikasi tersebut lalu coba lagi.';
+        }
+        if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+          return 'Resolusi atau perangkat kamera yang dipilih tidak didukung. Coba pilih Kamera Default.';
+        }
+        return `Gagal mengakses kamera: ${err?.message || name || 'Kesalahan tidak diketahui'}`;
+      }
+
+      function renderCameraPermissionUI(customError = '') {
+        const box = el.cameraPermissionBox;
+        const btn = el.btnRequestCameraPermission;
+        const newTabRow = el.cameraNewTabRow;
+        const permState = state.cameraPermissionState;
+
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+          btn.disabled = false;
+          box.className =
+            'rounded-xl border px-3.5 py-2.5 text-xs space-y-2 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-500/40 text-red-900 dark:text-red-200';
+          el.cameraPermissionTitle.textContent = 'Konteks Browser Tidak Mendukung Kamera';
+          el.cameraPermissionDesc.textContent = customError || describeCameraError({ name: 'SecurityError' });
+          btn.className =
+            'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 bg-red-600 hover:bg-red-700 text-white';
+          btn.textContent = 'Coba Lagi';
+          newTabRow.classList.remove('hidden');
+          return;
+        }
+
+        if (customError || permState === 'denied') {
+          btn.disabled = false;
+          box.className =
+            'rounded-xl border px-3.5 py-2.5 text-xs space-y-2 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-500/40 text-red-900 dark:text-red-200';
+          el.cameraPermissionTitle.textContent = permState === 'denied' ? 'Izin Kamera Diblokir Browser' : 'Kendala Akses Kamera';
+          el.cameraPermissionDesc.textContent =
+            customError ||
+            'Izin kamera berstatus Diblokir. Klik ikon gembok/kamera di address bar browser dan ubah Kamera ke Izinkan (Allow), lalu klik Coba Lagi.';
+          btn.className =
+            'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 bg-red-600 hover:bg-red-700 text-white';
+          btn.textContent = 'Coba Lagi';
+          newTabRow.classList.remove('hidden');
+          return;
+        }
+
+        if (permState === 'granted' || state.cameraPermissionUnlocked) {
+          box.className =
+            'rounded-xl border px-3.5 py-2 text-xs bg-pasundan-50 dark:bg-emerald-950/50 border-pasundan-100 dark:border-emerald-500/35 text-pasundan-800 dark:text-emerald-200';
+          el.cameraPermissionTitle.textContent = 'Izin Kamera Diizinkan';
+          el.cameraPermissionDesc.textContent = state.isCameraRunning
+            ? 'Kamera aktif dan memindai wajah siswa.'
+            : 'Perangkat kamera siap dibuka langsung di layar ini.';
+          btn.className =
+            'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50';
+          btn.textContent = state.isCameraRunning ? 'Kamera Aktif' : 'Buka Kamera';
+          btn.disabled = state.isCameraRunning;
+          newTabRow.classList.add('hidden');
+          return;
+        }
+
+        // Default / 'prompt'
+        btn.disabled = false;
+        box.className =
+          'rounded-xl border px-3.5 py-2.5 text-xs space-y-2 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-500/35 text-amber-900 dark:text-amber-200';
+        el.cameraPermissionTitle.textContent = 'Izin Kamera Diperlukan';
+        el.cameraPermissionDesc.textContent =
+          'Klik tombol Izinkan & Buka Kamera agar browser menampilkan persetujuan akses webcam langsung di tampilan ini.';
+        btn.className =
+          'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 bg-amber-600 hover:bg-amber-500 text-white';
+        btn.textContent = 'Izinkan & Buka Kamera';
+        newTabRow.classList.add('hidden');
+      }
+
+      async function syncCameraPermissionStatus() {
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+          state.cameraPermissionState = 'unsupported';
+          renderCameraPermissionUI();
+          return;
+        }
+
+        if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+          try {
+            const status = await navigator.permissions.query({ name: 'camera' });
+            state.cameraPermissionState = status.state;
+            if (status.state === 'granted') {
+              state.cameraPermissionUnlocked = true;
+            }
+            if (!state.permissionWatcherAttached) {
+              state.permissionWatcherAttached = true;
+              status.addEventListener('change', async () => {
+                state.cameraPermissionState = status.state;
+                state.cameraPermissionUnlocked = status.state === 'granted';
+                renderCameraPermissionUI();
+                await populateCameraList();
+              });
+            }
+            renderCameraPermissionUI();
+            return;
+          } catch {
+            // Safari / Firefox tertentu tidak mendukung query({ name: 'camera' })
+          }
+        }
+
+        state.cameraPermissionState = state.cameraPermissionUnlocked ? 'granted' : 'prompt';
+        renderCameraPermissionUI();
+      }
+
+      async function acquireCameraStream(preferredDeviceId) {
+        if (!window.isSecureContext) {
+          const err = new Error('Konteks tidak aman (bukan HTTPS/localhost).');
+          err.name = 'SecurityError';
+          throw err;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('MediaDevices getUserMedia tidak tersedia pada konteks browser ini.');
+        }
+
+        const attempts = [];
+        if (preferredDeviceId) {
+          attempts.push({
+            video: { deviceId: { exact: preferredDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false,
+          });
+          attempts.push({
+            video: { deviceId: { ideal: preferredDeviceId } },
+            audio: false,
+          });
+        }
+        attempts.push({
+          video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+        attempts.push({ video: true, audio: false });
+
+        let lastError = null;
+        for (const constraints of attempts) {
+          try {
+            return await navigator.mediaDevices.getUserMedia(constraints);
+          } catch (err) {
+            lastError = err;
+            if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError' || err?.name === 'SecurityError') {
+              throw err;
+            }
+          }
+        }
+        throw lastError || new Error('Gagal membuka stream kamera.');
+      }
+
+      async function waitForVideoReady(videoEl) {
+        if (videoEl.readyState >= 1 && videoEl.videoWidth > 0) return;
+        await new Promise((resolve) => {
+          let settled = false;
+          const done = () => {
+            if (settled) return;
+            settled = true;
+            videoEl.removeEventListener('loadedmetadata', done);
+            videoEl.removeEventListener('loadeddata', done);
+            videoEl.removeEventListener('canplay', done);
+            resolve();
+          };
+          videoEl.addEventListener('loadedmetadata', done, { once: true });
+          videoEl.addEventListener('loadeddata', done, { once: true });
+          videoEl.addEventListener('canplay', done, { once: true });
+          setTimeout(done, 2000);
+        });
+      }
+
+      async function attachAndPlayVideoStream(videoEl, stream) {
+        videoEl.muted = true;
+        videoEl.playsInline = true;
+        videoEl.setAttribute('playsinline', '');
+        videoEl.setAttribute('muted', '');
+        videoEl.srcObject = stream;
+
+        // Panggil play() langsung dalam user-gesture agar browser tidak memblokir autoplay
+        const playPromise = videoEl.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          await playPromise.catch((err) => {
+            console.warn('Initial video.play() notice:', err);
+          });
+        }
+
+        await waitForVideoReady(videoEl);
+
+        if (videoEl.paused) {
+          await videoEl.play().catch((err) => {
+            console.warn('Retry video.play() notice:', err);
+          });
+        }
+      }
+
+      async function populateCameraList() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+          el.cameraSelect.innerHTML = '<option value="">Browser tidak mendukung deteksi kamera</option>';
+          return [];
+        }
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+          const currentVal = el.cameraSelect.value;
+
+          el.cameraSelect.innerHTML = '';
+
+          if (videoDevices.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = state.cameraPermissionUnlocked
+              ? 'Tidak ada kamera terdeteksi'
+              : 'Kamera Default (Klik Izinkan & Buka)';
+            el.cameraSelect.appendChild(opt);
+            return [];
+          }
+
+          const hasRealIds = videoDevices.some((d) => Boolean(d.deviceId));
+          if (!hasRealIds) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = `Kamera Terdeteksi (${videoDevices.length}) · Izinkan akses untuk nama perangkat`;
+            el.cameraSelect.appendChild(opt);
+            return videoDevices;
+          }
+
+          videoDevices.forEach((device, idx) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.textContent = device.label || `Kamera ${idx + 1}`;
+            el.cameraSelect.appendChild(option);
+          });
+
+          if (currentVal && videoDevices.some((d) => d.deviceId === currentVal)) {
+            el.cameraSelect.value = currentVal;
+          }
+          return videoDevices;
+        } catch (err) {
+          console.warn('Tidak dapat membaca daftar kamera:', err);
+          return [];
+        }
+      }
+
+      async function detectAndUnlockCameras() {
+        el.detectionStateLabel.textContent = 'Meminta izin & mendeteksi kamera...';
+        try {
+          if (!state.isCameraRunning && !state.enrollStream) {
+            const probeStream = await acquireCameraStream('');
+            probeStream.getTracks().forEach((t) => t.stop());
+            await new Promise((r) => setTimeout(r, 120));
+          }
+          state.cameraPermissionUnlocked = true;
+          state.cameraPermissionState = 'granted';
+          const found = await populateCameraList();
+          renderCameraPermissionUI();
+          hideBanner();
+          if (found.length > 0) {
+            el.detectionStateLabel.textContent = `${found.length} perangkat kamera diizinkan & siap dibuka`;
+          } else {
+            el.detectionStateLabel.textContent = 'Tidak ada perangkat kamera ditemukan';
+            renderCameraPermissionUI('Izin kamera diberikan, namun tidak ada perangkat webcam yang terdeteksi.');
+          }
+        } catch (err) {
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            state.cameraPermissionState = 'denied';
+          }
+          const msg = describeCameraError(err);
+          el.detectionStateLabel.textContent = 'Izin kamera belum aktif';
+          renderCameraPermissionUI(msg);
+          showBanner(msg, 'Coba Izinkan Lagi', () => detectAndUnlockCameras());
+        }
+      }
+
+      async function startAttendanceCamera() {
+        if (state.isCameraRunning || state.isCameraStarting) return;
+        state.isCameraStarting = true;
+        let acquiredStream = null;
+        try {
+          stopEnrollCamera();
+          el.btnStartCamera.disabled = true;
+          el.detectionStateLabel.textContent = 'Meminta izin & mengaktifkan kamera...';
+          const selectedDeviceId = el.cameraSelect.value;
+
+          acquiredStream = await acquireCameraStream(selectedDeviceId);
+          state.cameraPermissionUnlocked = true;
+          state.cameraPermissionState = 'granted';
+          state.attendanceStream = acquiredStream;
+
+          await attachAndPlayVideoStream(el.attendanceVideo, acquiredStream);
+
+          // Refresh label kamera setelah izin diberikan browser & pilih track aktif
+          const activeTrack = acquiredStream.getVideoTracks()[0];
+          const activeDeviceId = activeTrack?.getSettings?.().deviceId;
+          await populateCameraList();
+          if (activeDeviceId && Array.from(el.cameraSelect.options).some((o) => o.value === activeDeviceId)) {
+            el.cameraSelect.value = activeDeviceId;
+          }
+
+          hideBanner();
+          state.isCameraRunning = true;
+          el.cameraPlaceholder.classList.add('hidden');
+          el.scanBeam.classList.remove('hidden');
+          el.btnStartCamera.disabled = true;
+          el.btnStopCamera.disabled = false;
+          el.detectionStateLabel.textContent = 'Pemindaian wajah aktif';
+          renderCameraPermissionUI();
+
+          scheduleNextDetectionFrame();
+        } catch (err) {
+          if (acquiredStream) {
+            acquiredStream.getTracks().forEach((track) => track.stop());
+          }
+          state.attendanceStream = null;
+          state.isCameraRunning = false;
+          el.attendanceVideo.srcObject = null;
+          el.btnStartCamera.disabled = false;
+          el.btnStopCamera.disabled = true;
+
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            state.cameraPermissionState = 'denied';
+          }
+          console.error('Kamera gagal diakses:', err);
+          const msg = describeCameraError(err);
+          el.detectionStateLabel.textContent = 'Kamera gagal diakses';
+          renderCameraPermissionUI(msg);
+          showBanner(msg, 'Coba Lagi', () => startAttendanceCamera());
+        } finally {
+          state.isCameraStarting = false;
+        }
+      }
+
+      function stopAttendanceCamera() {
+        state.isCameraRunning = false;
+        if (state.detectionTimer) {
+          clearTimeout(state.detectionTimer);
+          state.detectionTimer = null;
+        }
+        if (state.attendanceStream) {
+          state.attendanceStream.getTracks().forEach((track) => track.stop());
+          state.attendanceStream = null;
+        }
+        el.attendanceVideo.srcObject = null;
+        const ctx = el.attendanceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, el.attendanceCanvas.width, el.attendanceCanvas.height);
+        }
+        el.scanBeam.classList.add('hidden');
+        el.cameraPlaceholder.classList.remove('hidden');
+        el.btnStartCamera.disabled = false;
+        el.btnStopCamera.disabled = true;
+        el.detectionStateLabel.textContent = 'Kamera dihentikan';
+        renderCameraPermissionUI();
+      }
+
+      function scheduleNextDetectionFrame() {
+        if (!state.isCameraRunning) return;
+        state.detectionTimer = setTimeout(async () => {
+          await processVideoFrame();
+          scheduleNextDetectionFrame();
+        }, 400);
+      }
+
+      async function processVideoFrame() {
+        if (!state.isCameraRunning || !state.modelsLoaded || !window.faceapi) return;
+        const video = el.attendanceVideo;
+        if (video.readyState < 2 || video.videoWidth === 0) return;
+
+        const canvas = el.attendanceCanvas;
+        const displaySize = { width: video.videoWidth, height: video.videoHeight };
+        if (canvas.width !== displaySize.width || canvas.height !== displaySize.height) {
+          faceapi.matchDimensions(canvas, displaySize);
+        }
+
+        try {
+          const detectorMode = el.detectorSelect.value;
+          const options =
+            detectorMode === 'tiny'
+              ? new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
+              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.52 });
+
+          const detections = await faceapi
+            .detectAllFaces(video, options)
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+          const resizedDetections = faceapi.resizeResults(detections, displaySize);
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          if (resizedDetections.length === 0) {
+            el.detectionStateLabel.textContent = 'Menunggu wajah siswa atau guru di depan kamera...';
+            return;
+          }
+
+          el.detectionStateLabel.textContent = `${resizedDetections.length} wajah terdeteksi`;
+
+          for (const det of resizedDetections) {
+            const box = det.detection.box;
+            let label = 'Wajah Belum Terdaftar';
+            let boxColor = '#f59e0b'; // Amber untuk unknown
+
+            if (state.faceMatcher) {
+              const bestMatch = state.faceMatcher.findBestMatch(det.descriptor);
+              if (bestMatch.label !== 'unknown') {
+                const person = state.studentsById.get(bestMatch.label);
+                if (person) {
+                  const role = normalizePersonRole(person);
+                  const roleTag = getRoleLabel(role);
+                  const confidencePct = Math.max(0, Math.min(99, Math.round((1 - bestMatch.distance) * 100)));
+                  const alreadyPresent = state.attendancesToday.has(person.id);
+                  label = alreadyPresent
+                    ? `${person.name} (${roleTag} · Sudah Hadir)`
+                    : `${person.name} (${roleTag}) · ${confidencePct}%`;
+                  boxColor = role === 'guru' ? '#0284c7' : '#16a34a'; // Biru untuk Guru, Hijau untuk Siswa
+
+                  if (!alreadyPresent) {
+                    recordStudentAttendance(person);
+                  }
+                }
+              }
+            }
+
+            // Gambar kotak deteksi bersih pada overlay canvas
+            drawDetectionBox(ctx, box, label, boxColor);
+          }
+        } catch (err) {
+          console.error('Error deteksi frame:', err);
+        }
+      }
+
+      function drawDetectionBox(ctx, box, label, color) {
+        const { x, y, width, height } = box;
+        const corner = Math.min(20, Math.max(10, Math.round(Math.min(width, height) * 0.2)));
+        ctx.save();
+
+        const isStudent = color === '#16a34a';
+        const isTeacher = color === '#0284c7';
+        const fillTint = isStudent
+          ? 'rgba(16, 185, 129, 0.10)'
+          : isTeacher
+            ? 'rgba(14, 165, 233, 0.12)'
+            : 'rgba(245, 158, 11, 0.10)';
+        const guideStroke = isStudent
+          ? 'rgba(52, 211, 153, 0.45)'
+          : isTeacher
+            ? 'rgba(56, 189, 248, 0.50)'
+            : 'rgba(251, 191, 36, 0.45)';
+        const bracketStroke = isStudent ? '#34d399' : isTeacher ? '#38bdf8' : '#fbbf24';
+        const barFill = isStudent
+          ? 'rgba(6, 78, 59, 0.92)'
+          : isTeacher
+            ? 'rgba(12, 74, 110, 0.92)'
+            : 'rgba(120, 53, 15, 0.92)';
+
+        // Subtle biometric interior tint
+        ctx.fillStyle = fillTint;
+        ctx.fillRect(x, y, width, height);
+
+        // Thin full frame guide
+        ctx.strokeStyle = guideStroke;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, width, height);
+
+        // Precision L-shaped corner targeting brackets
+        ctx.strokeStyle = bracketStroke;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        // Top-left
+        ctx.moveTo(x, y + corner);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + corner, y);
+        // Top-right
+        ctx.moveTo(x + width - corner, y);
+        ctx.lineTo(x + width, y);
+        ctx.lineTo(x + width, y + corner);
+        // Bottom-right
+        ctx.moveTo(x + width, y + height - corner);
+        ctx.lineTo(x + width, y + height);
+        ctx.lineTo(x + width - corner, y + height);
+        // Bottom-left
+        ctx.moveTo(x + corner, y + height);
+        ctx.lineTo(x, y + height);
+        ctx.lineTo(x, y + height - corner);
+        ctx.stroke();
+
+        // Floating identification bar
+        ctx.font = '600 13px "DM Sans", sans-serif';
+        const textWidth = ctx.measureText(label).width;
+        const labelPadX = 10;
+        const labelHeight = 26;
+        const labelY = y > labelHeight + 6 ? y - labelHeight - 4 : y + height + 4;
+
+        ctx.fillStyle = barFill;
+        ctx.fillRect(x, labelY, textWidth + labelPadX * 2, labelHeight);
+        ctx.strokeStyle = bracketStroke;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, labelY, textWidth + labelPadX * 2, labelHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x + labelPadX, labelY + labelHeight / 2);
+        ctx.restore();
+      }
+
+      /* ----------------------------------------------------------------------
+         8. SIMPAN PRESENSI KE SUPABASE (DENGAN ANTI-SPAM / DEBOUNCE)
+         ---------------------------------------------------------------------- */
+      async function recordStudentAttendance(student) {
+        if (!state.supabaseClient) return;
+        if (state.attendancesToday.has(student.id) || state.pendingInserts.has(student.id)) {
+          return;
+        }
+
+        state.pendingInserts.add(student.id);
+        const todayStr = getTodayDateWIB();
+        const timeStr = getCurrentTimeWIB();
+
+        try {
+          const { data, error } = await state.supabaseClient
+            .from('attendances')
+            .insert({
+              student_id: student.id,
+              class_name: student.class_name,
+              date: todayStr,
+              time: timeStr,
+              status: 'Hadir',
+            })
+            .select()
+            .single();
+
+          if (error) {
+            // Kode 23505 = Unique constraint violation (sudah absen hari ini)
+            if (error.code === '23505') {
+              const { data: existing } = await state.supabaseClient
+                .from('attendances')
+                .select('id, student_id, class_name, date, time, status')
+                .eq('student_id', student.id)
+                .eq('date', todayStr)
+                .maybeSingle();
+              if (existing) {
+                state.attendancesToday.set(student.id, existing);
+                renderAttendanceTable();
+              }
+              return;
+            }
+            throw error;
+          }
+
+          if (data) {
+            state.attendancesToday.set(student.id, data);
+            renderAttendanceTable();
+            publishWeeklyChartPayload();
+            triggerVerificationAlert(student, data.time);
+          }
+        } catch (err) {
+          console.error('Gagal menyimpan presensi ke Supabase:', err);
+        } finally {
+          state.pendingInserts.delete(student.id);
+        }
+      }
+
+      /* ----------------------------------------------------------------------
+         8B. SISTEM NOTIFIKASI BROWSER (NOTIFICATION API) UNTUK GURU
+         ---------------------------------------------------------------------- */
+      function isDesktopNotificationSupported() {
+        return typeof window !== 'undefined' && 'Notification' in window;
+      }
+
+      function updateDesktopNotifUI() {
+        const btn = el.btnToggleDesktopNotif;
+        const label = el.desktopNotifLabel;
+        const iconWrap = el.desktopNotifIconWrap;
+
+        if (!isDesktopNotificationSupported()) {
+          btn.disabled = true;
+          btn.setAttribute('aria-pressed', 'false');
+          btn.className =
+            'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg whitespace-nowrap min-h-[36px] cursor-not-allowed';
+          label.textContent = 'Notif Tdk Didukung';
+          iconWrap.innerHTML = '<i data-lucide="bell-off" class="w-3.5 h-3.5"></i>';
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        const permission = Notification.permission;
+        if (permission === 'denied') {
+          state.desktopNotifEnabled = false;
+          btn.setAttribute('aria-pressed', 'false');
+          btn.className =
+            'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-500/40 hover:bg-red-100 dark:hover:bg-red-950 rounded-lg transition-colors whitespace-nowrap min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500';
+          label.textContent = 'Notif Diblokir';
+          iconWrap.innerHTML = '<i data-lucide="bell-off" class="w-3.5 h-3.5"></i>';
+        } else if (permission === 'granted' && state.desktopNotifEnabled) {
+          btn.setAttribute('aria-pressed', 'true');
+          btn.className =
+            'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-pasundan-800 dark:text-emerald-300 bg-pasundan-50 dark:bg-emerald-500/15 border border-pasundan-100 dark:border-emerald-500/35 hover:bg-pasundan-100 dark:hover:bg-emerald-500/25 rounded-lg transition-colors whitespace-nowrap min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500';
+          label.textContent = 'Notif Desktop: Aktif';
+          iconWrap.innerHTML = '<i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>';
+        } else {
+          btn.setAttribute('aria-pressed', 'false');
+          btn.className =
+            'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500';
+          label.textContent = permission === 'granted' ? 'Notif Desktop: Nonaktif' : 'Aktifkan Notif Desktop';
+          iconWrap.innerHTML = '<i data-lucide="bell" class="w-3.5 h-3.5"></i>';
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+      }
+
+      async function syncNotificationPermissionWatcher() {
+        if (!isDesktopNotificationSupported()) {
+          updateDesktopNotifUI();
+          return;
+        }
+        if (Notification.permission !== 'granted') {
+          state.desktopNotifEnabled = false;
+        }
+        updateDesktopNotifUI();
+
+        if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+          try {
+            const permStatus = await navigator.permissions.query({ name: 'notifications' });
+            permStatus.addEventListener('change', () => {
+              if (Notification.permission !== 'granted') {
+                state.desktopNotifEnabled = false;
+              }
+              updateDesktopNotifUI();
+            });
+          } catch {
+            // Browser tertentu tidak mendukung query({ name: 'notifications' })
+          }
+        }
+      }
+
+      function dispatchDesktopNotification(title, body, tag) {
+        if (!isDesktopNotificationSupported() || Notification.permission !== 'granted') {
+          return;
+        }
+        try {
+          const notif = new Notification(title, {
+            body,
+            icon: SCHOOL_LOGO_URL,
+            badge: SCHOOL_LOGO_URL,
+            tag,
+            renotify: false,
+          });
+          notif.onclick = () => {
+            try {
+              window.focus();
+            } catch {}
+            notif.close();
+          };
+          setTimeout(() => {
+            try {
+              notif.close();
+            } catch {}
+          }, 6500);
+        } catch (err) {
+          console.warn('Notification API tidak dapat menampilkan popup di konteks ini:', err);
+        }
+      }
+
+      async function toggleDesktopNotifications() {
+        if (!isDesktopNotificationSupported()) {
+          showBanner('Browser ini tidak mendukung Notification API untuk peringatan desktop.', 'Tutup', () => hideBanner());
+          return;
+        }
+
+        if (Notification.permission === 'denied') {
+          updateDesktopNotifUI();
+          showBanner(
+            'Izin notifikasi desktop diblokir oleh browser. Klik ikon gembok di address bar lalu ubah Notifikasi menjadi Izinkan, atau buka aplikasi di tab baru.',
+            'Tutup',
+            () => hideBanner()
+          );
+          return;
+        }
+
+        if (Notification.permission === 'default') {
+          try {
+            const result = await Notification.requestPermission();
+            if (result === 'granted') {
+              state.desktopNotifEnabled = true;
+              localStorage.setItem(STORAGE_KEYS.DESKTOP_NOTIF, 'true');
+              updateDesktopNotifUI();
+              hideBanner();
+              dispatchDesktopNotification(
+                'Notifikasi Presensi Face Recognition Attendance School Aktif',
+                'Peringatan desktop akan muncul otomatis setiap ada siswa atau guru yang terdeteksi hadir.',
+                'pasundan9-notif-ready'
+              );
+            } else {
+              state.desktopNotifEnabled = false;
+              localStorage.setItem(STORAGE_KEYS.DESKTOP_NOTIF, 'false');
+              updateDesktopNotifUI();
+              showBanner(
+                'Izin notifikasi desktop belum disetujui. Aktifkan notifikasi melalui pengaturan izin browser agar admin/guru menerima peringatan desktop.',
+                'Tutup',
+                () => hideBanner()
+              );
+            }
+          } catch (err) {
+            console.error('Gagal meminta izin notifikasi:', err);
+            showBanner('Browser memblokir permintaan izin notifikasi pada frame ini. Coba buka aplikasi di tab penuh.', 'Tutup', () => hideBanner());
+          }
+          return;
+        }
+
+        // Notification.permission === 'granted'
+        state.desktopNotifEnabled = !state.desktopNotifEnabled;
+        localStorage.setItem(STORAGE_KEYS.DESKTOP_NOTIF, state.desktopNotifEnabled ? 'true' : 'false');
+        updateDesktopNotifUI();
+        if (state.desktopNotifEnabled) {
+          dispatchDesktopNotification(
+            'Notifikasi Presensi Diaktifkan',
+            'Peringatan desktop akan muncul saat siswa atau guru baru tercatat hadir.',
+            'pasundan9-notif-enabled'
+          );
+        }
+      }
+
+      function sendStudentDesktopNotification(person, timeStr) {
+        if (!state.desktopNotifEnabled || !isDesktopNotificationSupported()) return;
+        if (Notification.permission !== 'granted') return;
+
+        const todayStr = getTodayDateWIB();
+        const dedupeKey = `${todayStr}:${person.id}`;
+        if (state.notifiedStudentsToday.has(dedupeKey)) return;
+        state.notifiedStudentsToday.add(dedupeKey);
+
+        const isGuru = normalizePersonRole(person) === 'guru';
+        const timeFormatted = String(timeStr || getCurrentTimeWIB()).slice(0, 8);
+        dispatchDesktopNotification(
+          `${isGuru ? 'Guru Hadir' : 'Siswa Hadir'}: ${person.name}`,
+          `${isGuru ? 'Mapel/Jabatan' : 'Kelas'} ${person.class_name} · ${isGuru ? 'NIP/ID' : 'NISN'} ${person.nisn} · Pukul ${timeFormatted} WIB`,
+          `pasundan9-attendance-${person.id}-${todayStr}`
+        );
+      }
+
+      function triggerVerificationAlert(person, timeStr) {
+        const now = Date.now();
+        const lastAlert = state.toastCooldown.get(person.id) || 0;
+        if (now - lastAlert < 5000) return;
+        state.toastCooldown.set(person.id, now);
+
+        const isGuru = normalizePersonRole(person) === 'guru';
+        el.alertRoleLabel.textContent = isGuru
+          ? 'Presensi Guru Berhasil Diverifikasi'
+          : 'Presensi Siswa Berhasil Diverifikasi';
+        el.alertStudentName.textContent = person.name;
+        el.alertStudentClass.textContent = person.class_name;
+        el.alertStudentNisn.textContent = person.nisn;
+        el.alertStudentTime.textContent = String(timeStr || getCurrentTimeWIB()).slice(0, 8);
+        el.successAlert.classList.remove('hidden');
+
+        playSuccessChime();
+        sendStudentDesktopNotification(person, timeStr);
+
+        if (state.alertTimer) clearTimeout(state.alertTimer);
+        state.alertTimer = setTimeout(() => {
+          el.successAlert.classList.add('hidden');
+        }, 4200);
+      }
+
+      /* ----------------------------------------------------------------------
+         9. RENDER TABEL LOG KEHADIRAN & STATISTIK
+         ---------------------------------------------------------------------- */
+      function populateClassFilterOptions() {
+        const scopedByRole =
+          state.roleFilter === 'ALL'
+            ? state.students
+            : state.students.filter((s) => normalizePersonRole(s) === state.roleFilter);
+
+        const classes = Array.from(new Set(scopedByRole.map((s) => s.class_name).filter(Boolean))).sort();
+        const prev = state.classFilter;
+        const defaultLabel =
+          state.roleFilter === 'guru'
+            ? 'Semua Mapel / Jabatan'
+            : state.roleFilter === 'siswa'
+              ? 'Semua Kelas'
+              : 'Semua Kelas / Unit';
+
+        el.classFilterSelect.innerHTML = `<option value="ALL">${defaultLabel}</option>`;
+        for (const cls of classes) {
+          const opt = document.createElement('option');
+          opt.value = cls;
+          opt.textContent = cls;
+          el.classFilterSelect.appendChild(opt);
+        }
+        if (prev === 'ALL' || classes.includes(prev)) {
+          el.classFilterSelect.value = prev;
+        } else {
+          state.classFilter = 'ALL';
+          el.classFilterSelect.value = 'ALL';
+        }
+      }
+
+      function getFilteredStudents() {
+        const q = state.searchQuery.trim().toLowerCase();
+        return state.students.filter((person) => {
+          if (state.roleFilter !== 'ALL' && normalizePersonRole(person) !== state.roleFilter) {
+            return false;
+          }
+          if (state.classFilter !== 'ALL' && person.class_name !== state.classFilter) {
+            return false;
+          }
+          const isPresent = state.attendancesToday.has(person.id);
+          if (state.statusFilter === 'HADIR' && !isPresent) return false;
+          if (state.statusFilter === 'BELUM' && isPresent) return false;
+
+          if (q) {
+            const roleWord = getRoleLabel(normalizePersonRole(person));
+            const hay = `${person.name} ${person.nisn} ${person.class_name} ${roleWord}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+      }
+
+      function renderAttendanceTable() {
+        const totalStudentsCount = state.students.filter((s) => normalizePersonRole(s) === 'siswa').length;
+        const totalTeachersCount = state.students.filter((s) => normalizePersonRole(s) === 'guru').length;
+        el.statRoleBreakdown.textContent = `${totalStudentsCount} Siswa · ${totalTeachersCount} Guru`;
+
+        // Hitung statistik sesuai filter Peran & Kelas/Mapel
+        const scopedPool = state.students.filter((s) => {
+          if (state.roleFilter !== 'ALL' && normalizePersonRole(s) !== state.roleFilter) {
+            return false;
+          }
+          return state.classFilter === 'ALL' || s.class_name === state.classFilter;
+        });
+
+        const total = scopedPool.length;
+        let presentCount = 0;
+        for (const s of scopedPool) {
+          if (state.attendancesToday.has(s.id)) presentCount++;
+        }
+        const absentCount = Math.max(0, total - presentCount);
+        const pct = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+
+        el.statTotalLabel.textContent =
+          state.roleFilter === 'guru'
+            ? 'Total Guru'
+            : state.roleFilter === 'siswa'
+              ? 'Total Siswa'
+              : 'Total Terdaftar';
+        el.statTotal.textContent = String(total);
+        el.statPresent.textContent = String(presentCount);
+        el.statPresentPct.textContent = `${pct}%`;
+        el.statAbsent.textContent = String(absentCount);
+        el.attendanceProgressBar.style.width = `${pct}%`;
+
+        const roleText =
+          state.roleFilter === 'guru'
+            ? 'Guru'
+            : state.roleFilter === 'siswa'
+              ? 'Siswa'
+              : 'Siswa & Guru';
+        el.attendanceClassSubtitle.textContent =
+          state.classFilter === 'ALL'
+            ? `Menampilkan seluruh ${roleText} terdaftar`
+            : `${roleText} · ${state.classFilter}`;
+
+        const rows = getFilteredStudents();
+        // Urutkan yang baru hadir di atas agar aktivitas terbaru langsung terlihat
+        rows.sort((a, b) => {
+          const attA = state.attendancesToday.get(a.id);
+          const attB = state.attendancesToday.get(b.id);
+          if (attA && !attB) return -1;
+          if (!attA && attB) return 1;
+          if (attA && attB) return String(attB.time).localeCompare(String(attA.time));
+          return a.name.localeCompare(b.name);
+        });
+
+        if (rows.length === 0) {
+          el.attendanceTableBody.innerHTML = '';
+          el.attendanceEmptyState.classList.remove('hidden');
+
+          if (!state.supabaseConnected) {
+            el.attendanceEmptyTitle.textContent = 'Supabase belum terhubung';
+            el.attendanceEmptyDesc.textContent =
+              'Masukkan SUPABASE_URL dan SUPABASE_ANON_KEY di tab Konfigurasi Supabase untuk memuat data siswa & guru.';
+            el.btnEmptyAction.textContent = 'Buka Konfigurasi';
+            el.btnEmptyAction.onclick = () => switchTab('config');
+          } else if (state.students.length === 0) {
+            el.attendanceEmptyTitle.textContent = 'Belum ada siswa atau guru terdaftar';
+            el.attendanceEmptyDesc.textContent =
+              'Tambahkan data wajah siswa atau guru melalui menu Pendaftaran Wajah agar dapat dikenali oleh kamera.';
+            el.btnEmptyAction.textContent = 'Daftarkan Siswa / Guru';
+            el.btnEmptyAction.onclick = () => switchTab('enrollment');
+          } else {
+            el.attendanceEmptyTitle.textContent = 'Tidak ada data yang sesuai filter';
+            el.attendanceEmptyDesc.textContent = 'Ubah kata kunci pencarian atau pilih filter peran/status lainnya.';
+            el.btnEmptyAction.textContent = 'Reset Filter';
+            el.btnEmptyAction.onclick = () => {
+              state.roleFilter = 'ALL';
+              state.searchQuery = '';
+              state.classFilter = 'ALL';
+              state.statusFilter = 'ALL';
+              el.searchStudentInput.value = '';
+              populateClassFilterOptions();
+              el.classFilterSelect.value = 'ALL';
+              renderRoleFilterButtons();
+              renderStatusFilterButtons();
+              renderAttendanceTable();
+              publishWeeklyChartPayload();
+            };
+          }
+          return;
+        }
+
+        el.attendanceEmptyState.classList.add('hidden');
+        el.attendanceTableBody.innerHTML = rows
+          .map((person) => {
+            const role = normalizePersonRole(person);
+            const isGuru = role === 'guru';
+            const att = state.attendancesToday.get(person.id);
+            const isPresent = Boolean(att);
+            const timeFormatted = att ? String(att.time).slice(0, 8) : '—';
+            const avatarHtml = person.photo_url
+              ? `<img src="${escapeHtml(person.photo_url)}" alt="${escapeHtml(person.name)}" referrerpolicy="no-referrer" class="w-9 h-9 rounded-lg object-cover border ${isPresent ? 'border-emerald-500/60' : 'border-slate-200 dark:border-slate-700'} shrink-0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                 <div style="display:none" class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-display text-xs font-semibold items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">${escapeHtml(getInitials(person.name))}</div>`
+              : `<div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-display text-xs font-semibold flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">${escapeHtml(getInitials(person.name))}</div>`;
+
+            const roleBadge = isGuru
+              ? `<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 shrink-0">Guru</span>`
+              : `<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">Siswa</span>`;
+
+            const statusBadge = isPresent
+              ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-pasundan-800 dark:text-emerald-300 bg-pasundan-50 dark:bg-emerald-500/15 border border-pasundan-100 dark:border-emerald-500/30 rounded-md">
+                   <svg class="w-3.5 h-3.5 text-pasundan-700 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                   Hadir
+                 </span>`
+              : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
+                   Belum Hadir
+                 </span>`;
+
+            return `
+              <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/45 transition-colors">
+                <td class="py-2.5 pl-5 pr-3">
+                  <div class="flex items-center gap-3 min-w-0">
+                    ${avatarHtml}
+                    <div class="min-w-0 flex items-center gap-2">
+                      <span class="font-medium text-slate-900 dark:text-slate-100 truncate">${escapeHtml(person.name)}</span>
+                      ${roleBadge}
+                    </div>
+                  </div>
+                </td>
+                <td class="py-2.5 px-3 font-mono tabular-nums text-xs text-slate-600 dark:text-slate-400">${escapeHtml(person.nisn)}</td>
+                <td class="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">${escapeHtml(person.class_name)}</td>
+                <td class="py-2.5 px-3 font-mono tabular-nums text-xs ${isPresent ? 'text-slate-900 dark:text-emerald-300 font-medium' : 'text-slate-400 dark:text-slate-600'}">${escapeHtml(timeFormatted)}</td>
+                <td class="py-2.5 pl-3 pr-5 text-right whitespace-nowrap">${statusBadge}</td>
+              </tr>
+            `;
+          })
+          .join('');
+      }
+
+      /* ----------------------------------------------------------------------
+         10. PENDAFTARAN WAJAH SISWA (ENROLLMENT) & EKSTRAKSI DESCRIPTOR
+         ---------------------------------------------------------------------- */
+      async function startEnrollCamera() {
+        let acquiredStream = null;
+        try {
+          stopAttendanceCamera();
+          stopEnrollCamera();
+          const preferredDeviceId = el.cameraSelect?.value || '';
+          acquiredStream = await acquireCameraStream(preferredDeviceId);
+          state.cameraPermissionUnlocked = true;
+          state.cameraPermissionState = 'granted';
+          state.enrollStream = acquiredStream;
+          await attachAndPlayVideoStream(el.enrollVideo, acquiredStream);
+          await populateCameraList();
+          renderCameraPermissionUI();
+          el.enrollVideoPlaceholder.classList.add('hidden');
+          el.btnEnrollCapture.disabled = false;
+          el.enrollFeedback.classList.add('hidden');
+        } catch (err) {
+          if (acquiredStream) {
+            acquiredStream.getTracks().forEach((t) => t.stop());
+          }
+          state.enrollStream = null;
+          el.enrollVideo.srcObject = null;
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            state.cameraPermissionState = 'denied';
+          }
+          const msg = describeCameraError(err);
+          renderCameraPermissionUI(msg);
+          showInlineFeedback(el.enrollFeedback, 'error', msg);
+        }
+      }
+
+      function stopEnrollCamera() {
+        if (state.enrollStream) {
+          state.enrollStream.getTracks().forEach((t) => t.stop());
+          state.enrollStream = null;
+        }
+        el.enrollVideo.srcObject = null;
+        el.enrollVideoPlaceholder.classList.remove('hidden');
+        el.btnEnrollCapture.disabled = true;
+      }
+
+      async function captureAndExtractFromWebcam() {
+        const video = el.enrollVideo;
+        if (video.readyState < 2 || video.videoWidth === 0) return;
+
+        const canvas = document.createElement('canvas');
+        const targetWidth = 400;
+        const scale = targetWidth / video.videoWidth;
+        canvas.width = targetWidth;
+        canvas.height = Math.round(video.videoHeight * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        await extractDescriptorFromDataUrl(dataUrl);
+      }
+
+      async function handleUploadEnrollFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          const img = new Image();
+          img.onload = async () => {
+            const maxDim = 480;
+            const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * ratio);
+            canvas.height = Math.round(img.height * ratio);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            await extractDescriptorFromDataUrl(compressedDataUrl);
+          };
+          img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      async function extractDescriptorFromDataUrl(dataUrl) {
+        state.extractedDescriptor = null;
+        state.extractedPhotoDataUrl = dataUrl;
+        el.btnSaveStudent.disabled = true;
+
+        el.enrollPreviewCard.classList.remove('hidden');
+        el.enrollPreviewImg.src = dataUrl;
+        el.enrollExtractStatus.textContent = 'Mendeteksi wajah & mengekstrak 128 vektor...';
+        el.enrollExtractStatus.className = 'text-xs font-medium text-slate-700 dark:text-slate-200';
+        el.enrollDescriptorInfo.textContent = 'Mohon tunggu...';
+
+        if (!state.modelsLoaded || !window.faceapi) {
+          el.enrollExtractStatus.textContent = 'Model AI belum siap';
+          el.enrollExtractStatus.className = 'text-xs font-medium text-red-700 dark:text-red-400';
+          el.enrollDescriptorInfo.textContent = 'Tunggu model face-api.js selesai dimuat.';
+          return;
+        }
+
+        try {
+          const img = await faceapi.fetchImage(dataUrl);
+          const detections = await faceapi
+            .detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+          if (detections.length === 0) {
+            el.enrollExtractStatus.textContent = 'Wajah tidak terdeteksi pada foto';
+            el.enrollExtractStatus.className = 'text-xs font-medium text-red-700 dark:text-red-400';
+            el.enrollDescriptorInfo.textContent = 'Gunakan foto wajah menghadap depan dengan cahaya terang.';
+            return;
+          }
+
+          if (detections.length > 1) {
+            el.enrollExtractStatus.textContent = `Terdeteksi ${detections.length} wajah sekaligus`;
+            el.enrollExtractStatus.className = 'text-xs font-medium text-amber-700 dark:text-amber-300';
+            el.enrollDescriptorInfo.textContent = 'Foto pendaftaran harus hanya memuat 1 wajah.';
+            return;
+          }
+
+          const descriptorArray = Array.from(detections[0].descriptor);
+          state.extractedDescriptor = descriptorArray;
+
+          el.enrollExtractStatus.textContent = 'Ekstraksi wajah berhasil';
+          el.enrollExtractStatus.className = 'text-xs font-medium text-pasundan-700 dark:text-emerald-400';
+          el.enrollDescriptorInfo.textContent = `128 vektor float siap disimpan [${descriptorArray
+            .slice(0, 3)
+            .map((n) => n.toFixed(3))
+            .join(', ')}, ...]`;
+          el.btnSaveStudent.disabled = false;
+        } catch (err) {
+          console.error('Gagal ekstraksi descriptor:', err);
+          el.enrollExtractStatus.textContent = 'Gagal memproses gambar wajah';
+          el.enrollExtractStatus.className = 'text-xs font-medium text-red-700 dark:text-red-400';
+          el.enrollDescriptorInfo.textContent = err.message || 'Coba foto lain.';
+        }
+      }
+
+      async function saveNewStudent(e) {
+        e.preventDefault();
+        if (!state.supabaseClient) {
+          showInlineFeedback(el.enrollFeedback, 'error', 'Supabase belum dikonfigurasi. Atur koneksi terlebih dahulu.');
+          return;
+        }
+        if (!state.extractedDescriptor || state.extractedDescriptor.length !== 128) {
+          showInlineFeedback(el.enrollFeedback, 'error', 'Silakan ambil atau upload foto wajah yang valid terlebih dahulu.');
+          return;
+        }
+
+        const nisn = el.enrollNisn.value.trim();
+        const name = el.enrollName.value.trim();
+        const className = el.enrollClass.value.trim();
+        const role = state.enrollRole === 'guru' ? 'guru' : 'siswa';
+        const roleText = getRoleLabel(role);
+        if (!nisn || !name || !className) return;
+
+        el.btnSaveStudent.disabled = true;
+        showInlineFeedback(el.enrollFeedback, 'info', `Menyimpan data ${roleText} dan vektor wajah ke Supabase...`);
+
+        try {
+          const payload = {
+            nisn,
+            name,
+            class_name: className,
+            face_descriptor: state.extractedDescriptor,
+            photo_url: state.extractedPhotoDataUrl,
+          };
+          if (state.hasRoleColumn || role === 'guru') {
+            payload.role = role;
+          }
+
+          const { error } = await state.supabaseClient.from('students').insert(payload);
+
+          if (error) {
+            if (error.code === '23505') {
+              throw new Error(`${role === 'guru' ? 'NIP/ID' : 'NISN'} ${nisn} sudah terdaftar di database.`);
+            }
+            const errMsg = String(error.message || '').toLowerCase();
+            if (error.code === '42703' || errMsg.includes('role')) {
+              throw new Error('Kolom "role" belum tersedia di Supabase. Jalankan ulang Skrip SQL terbaru pada tab Konfigurasi Supabase.');
+            }
+            throw error;
+          }
+
+          showInlineFeedback(el.enrollFeedback, 'success', `${roleText} ${name} (${className}) berhasil didaftarkan.`);
+          el.enrollmentForm.reset();
+          el.enrollPreviewCard.classList.add('hidden');
+          state.extractedDescriptor = null;
+          state.extractedPhotoDataUrl = null;
+
+          await loadInitialSchoolData();
+        } catch (err) {
+          showInlineFeedback(el.enrollFeedback, 'error', `Gagal menyimpan: ${err.message}`);
+          el.btnSaveStudent.disabled = false;
+        }
+      }
+
+      function renderDirectoryList() {
+        const q = state.directoryQuery.trim().toLowerCase();
+        const filtered = state.students.filter((s) => {
+          if (state.directoryRoleFilter !== 'ALL' && normalizePersonRole(s) !== state.directoryRoleFilter) {
+            return false;
+          }
+          if (!q) return true;
+          const roleWord = getRoleLabel(normalizePersonRole(s));
+          return `${s.name} ${s.nisn} ${s.class_name} ${roleWord}`.toLowerCase().includes(q);
+        });
+
+        const studentCount = state.students.filter((s) => normalizePersonRole(s) === 'siswa').length;
+        const teacherCount = state.students.filter((s) => normalizePersonRole(s) === 'guru').length;
+        el.directoryCount.textContent = `${studentCount} Siswa · ${teacherCount} Guru`;
+
+        if (filtered.length === 0) {
+          el.directoryList.innerHTML = `
+            <div class="px-5 py-10 text-center text-xs text-slate-500 dark:text-slate-400">
+              ${state.students.length === 0 ? 'Belum ada siswa atau guru terdaftar di Supabase.' : 'Tidak ada profil yang cocok dengan filter atau pencarian.'}
+            </div>
+          `;
+          return;
+        }
+
+        el.directoryList.innerHTML = filtered
+          .map((person) => {
+            const isGuru = normalizePersonRole(person) === 'guru';
+            const isConfirming = state.deleteConfirmId === person.id;
+            const thumb = person.photo_url
+              ? `<img src="${escapeHtml(person.photo_url)}" alt="${escapeHtml(person.name)}" referrerpolicy="no-referrer" class="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0" />`
+              : `<div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-display text-xs font-semibold flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">${escapeHtml(getInitials(person.name))}</div>`;
+
+            const roleBadge = isGuru
+              ? `<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 shrink-0">Guru</span>`
+              : `<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">Siswa</span>`;
+
+            const actions = isConfirming
+              ? `<div class="flex items-center gap-1.5 shrink-0">
+                   <button type="button" data-confirm-delete="${escapeHtml(person.id)}" class="px-2.5 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded">Hapus</button>
+                   <button type="button" data-cancel-delete="1" class="px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded">Batal</button>
+                 </div>`
+              : `<button type="button" data-request-delete="${escapeHtml(person.id)}" class="px-2.5 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-md transition-colors shrink-0">
+                   Hapus
+                 </button>`;
+
+            return `
+              <div class="px-5 py-3 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/45">
+                <div class="flex items-center gap-3 min-w-0">
+                  ${thumb}
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">${escapeHtml(person.name)}</span>
+                      ${roleBadge}
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums mt-0.5">
+                      ${escapeHtml(person.nisn)} · <span class="font-sans">${escapeHtml(person.class_name)}</span>
+                    </div>
+                  </div>
+                </div>
+                ${actions}
+              </div>
+            `;
+          })
+          .join('');
+      }
+
+      async function deleteStudentById(id) {
+        if (!state.supabaseClient) return;
+        try {
+          const { error } = await state.supabaseClient.from('students').delete().eq('id', id);
+          if (error) throw error;
+          state.deleteConfirmId = null;
+          await loadInitialSchoolData();
+        } catch (err) {
+          showInlineFeedback(el.enrollFeedback, 'error', `Gagal menghapus data: ${err.message}`);
+        }
+      }
+
+      /* ----------------------------------------------------------------------
+         11. EKSPOR CSV HARIAN
+         ---------------------------------------------------------------------- */
+      function exportTodayCsv() {
+        const rows = getFilteredStudents();
+        const dateStr = getTodayDateWIB();
+        const header = ['Tanggal', 'Peran', 'NISN / NIP', 'Nama Lengkap', 'Kelas / Mapel', 'Jam Hadir', 'Status'];
+        const csvLines = [header.join(',')];
+
+        for (const s of rows) {
+          const att = state.attendancesToday.get(s.id);
+          const roleLabel = getRoleLabel(normalizePersonRole(s));
+          const line = [
+            dateStr,
+            roleLabel,
+            `"${String(s.nisn).replace(/"/g, '""')}"`,
+            `"${String(s.name).replace(/"/g, '""')}"`,
+            `"${String(s.class_name).replace(/"/g, '""')}"`,
+            att ? String(att.time).slice(0, 8) : '-',
+            att ? 'Hadir' : 'Belum Hadir',
+          ];
+          csvLines.push(line.join(','));
+        }
+
+        const blob = new Blob(['\ufeff' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `absensi-face-recognition-school-${dateStr}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      /* ----------------------------------------------------------------------
+         12. EVENT LISTENERS & STARTUP
+         ---------------------------------------------------------------------- */
+      function bindEvents() {
+        document.querySelectorAll('.nav-tab').forEach((btn) => {
+          btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        el.brandLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          switchTab('presensi');
+        });
+
+        el.btnThemeToggle.addEventListener('click', () => {
+          applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+        });
+
+        el.supabaseStatusBtn.addEventListener('click', () => switchTab('config'));
+        el.btnExportCsv.addEventListener('click', exportTodayCsv);
+
+        // Kamera presensi
+        el.btnStartCamera.addEventListener('click', startAttendanceCamera);
+        el.btnPlaceholderStartCamera.addEventListener('click', startAttendanceCamera);
+        el.btnStopCamera.addEventListener('click', stopAttendanceCamera);
+        el.btnDetectCameras.addEventListener('click', detectAndUnlockCameras);
+        el.btnRequestCameraPermission.addEventListener('click', startAttendanceCamera);
+        el.openNewTabCameraLink.href = window.location.href;
+        el.cameraSelect.addEventListener('change', () => {
+          if (state.isCameraRunning) {
+            stopAttendanceCamera();
+            startAttendanceCamera();
+          }
+        });
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
+          navigator.mediaDevices.addEventListener('devicechange', () => {
+            populateCameraList();
+          });
+        }
+
+        el.btnToggleAudio.addEventListener('click', () => {
+          state.audioEnabled = !state.audioEnabled;
+          el.btnToggleAudio.setAttribute('aria-pressed', String(state.audioEnabled));
+          el.audioLabel.textContent = state.audioEnabled ? 'Suara Aktif' : 'Suara Bisu';
+          el.audioIconWrap.innerHTML = `<i data-lucide="${state.audioEnabled ? 'volume-2' : 'volume-x'}" class="w-3.5 h-3.5"></i>`;
+          if (window.lucide) window.lucide.createIcons();
+        });
+
+        // Filter log kehadiran & Notifikasi Desktop
+        el.btnToggleDesktopNotif.addEventListener('click', toggleDesktopNotifications);
+        el.btnRefreshAttendance.addEventListener('click', () => {
+          loadInitialSchoolData().catch(console.error);
+        });
+        document.querySelectorAll('.role-filter-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.roleFilter = btn.dataset.roleFilter;
+            state.classFilter = 'ALL';
+            renderRoleFilterButtons();
+            populateClassFilterOptions();
+            renderAttendanceTable();
+            publishWeeklyChartPayload();
+          });
+        });
+        el.searchStudentInput.addEventListener('input', (e) => {
+          state.searchQuery = e.target.value;
+          renderAttendanceTable();
+        });
+        el.classFilterSelect.addEventListener('change', (e) => {
+          state.classFilter = e.target.value;
+          renderAttendanceTable();
+          publishWeeklyChartPayload();
+        });
+        document.querySelectorAll('.status-filter-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.statusFilter = btn.dataset.statusFilter;
+            renderStatusFilterButtons();
+            renderAttendanceTable();
+          });
+        });
+
+        // Enrollment
+        document.querySelectorAll('.enroll-role-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.enrollRole = btn.dataset.enrollRole === 'guru' ? 'guru' : 'siswa';
+            renderEnrollRoleUI();
+          });
+        });
+        document.querySelectorAll('.photo-mode-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.photoMode = btn.dataset.photoMode;
+            renderPhotoModeButtons();
+          });
+        });
+        el.btnEnrollStartCam.addEventListener('click', startEnrollCamera);
+        el.btnEnrollCapture.addEventListener('click', captureAndExtractFromWebcam);
+        el.enrollFileInput.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files[0]) {
+            handleUploadEnrollFile(e.target.files[0]);
+          }
+        });
+        el.enrollmentForm.addEventListener('submit', saveNewStudent);
+
+        document.querySelectorAll('.dir-role-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.directoryRoleFilter = btn.dataset.dirRole;
+            renderDirectoryRoleButtons();
+            renderDirectoryList();
+          });
+        });
+        el.directorySearchInput.addEventListener('input', (e) => {
+          state.directoryQuery = e.target.value;
+          renderDirectoryList();
+        });
+
+        el.directoryList.addEventListener('click', (e) => {
+          const reqBtn = e.target.closest('[data-request-delete]');
+          if (reqBtn) {
+            state.deleteConfirmId = reqBtn.dataset.requestDelete;
+            renderDirectoryList();
+            return;
+          }
+          const cancelBtn = e.target.closest('[data-cancel-delete]');
+          if (cancelBtn) {
+            state.deleteConfirmId = null;
+            renderDirectoryList();
+            return;
+          }
+          const confirmBtn = e.target.closest('[data-confirm-delete]');
+          if (confirmBtn) {
+            deleteStudentById(confirmBtn.dataset.confirmDelete);
+          }
+        });
+
+        // Konfigurasi Supabase
+        el.cfgThreshold.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          el.cfgThresholdValue.textContent = val.toFixed(2);
+        });
+
+        el.supabaseConfigForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const url = el.cfgSupabaseUrl.value.trim();
+          const key = el.cfgSupabaseKey.value.trim();
+          const threshold = parseFloat(el.cfgThreshold.value);
+
+          localStorage.setItem(STORAGE_KEYS.URL, url);
+          localStorage.setItem(STORAGE_KEYS.KEY, key);
+          localStorage.setItem(STORAGE_KEYS.THRESHOLD, String(threshold));
+          state.threshold = threshold;
+
+          showInlineFeedback(el.configFeedback, 'info', 'Menyimpan konfigurasi & menguji koneksi Supabase...');
+          await initSupabaseFromStorage();
+          if (state.supabaseConnected) {
+            showInlineFeedback(el.configFeedback, 'success', 'Berhasil terhubung ke Supabase dan mendengarkan pembaruan realtime.');
+          } else {
+            showInlineFeedback(el.configFeedback, 'error', 'Gagal terhubung. Periksa kembali URL, Anon Key, dan pastikan SQL migrasi sudah dijalankan.');
+          }
+        });
+
+        el.btnResetConfig.addEventListener('click', () => {
+          localStorage.removeItem(STORAGE_KEYS.URL);
+          localStorage.removeItem(STORAGE_KEYS.KEY);
+          localStorage.removeItem(STORAGE_KEYS.THRESHOLD);
+          state.threshold = 0.48;
+          el.cfgSupabaseUrl.value = '';
+          el.cfgSupabaseKey.value = '';
+          el.cfgThreshold.value = '0.48';
+          el.cfgThresholdValue.textContent = '0.48';
+          showInlineFeedback(el.configFeedback, 'info', 'Konfigurasi lokal telah direset.');
+          initSupabaseFromStorage();
+        });
+
+        el.btnCopySql.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(el.sqlCodeBlock.textContent);
+            el.copySqlLabel.textContent = 'Tersalin';
+            setTimeout(() => {
+              el.copySqlLabel.textContent = 'Salin SQL';
+            }, 2000);
+          } catch {
+            el.copySqlLabel.textContent = 'Pilih & Salin Manual';
+          }
+        });
+      }
+
+      function startClock() {
+        const tick = () => {
+          el.todayDateLabel.textContent = formatLongDateID();
+          el.liveClock.textContent = `${getCurrentTimeWIB()} WIB`;
+        };
+        tick();
+        setInterval(tick, 1000);
+      }
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        applyTheme(state.theme);
+        startClock();
+        bindEvents();
+        switchTab('presensi');
+        renderRoleFilterButtons();
+        renderEnrollRoleUI();
+        renderDirectoryRoleButtons();
+        renderStatusFilterButtons();
+        renderPhotoModeButtons();
+
+        window.__PASUNDAN9_REFRESH_WEEKLY_CHART__ = () => loadWeeklyAttendanceSummary();
+        window.__PASUNDAN9_SWITCH_TAB__ = (tab) => switchTab(tab);
+        publishWeeklyChartPayload();
+
+        await syncNotificationPermissionWatcher();
+        await syncCameraPermissionStatus();
+        await populateCameraList();
+        await Promise.all([initFaceApiModels(), initSupabaseFromStorage()]);
+      });
+    </script>
+    <script type="module" src="/src/weeklyChartEntry.tsx"></script>
+  </body>
+</html>

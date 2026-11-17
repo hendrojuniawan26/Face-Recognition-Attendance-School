@@ -1,0 +1,10 @@
+{
+  "name": "Face Recognition Attendance",
+  "description": "Sistem Absensi Wajah Siswa Realtime berbasis browser menggunakan face-api.js dan Supabase untuk Digitalisasi Sekolah",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
